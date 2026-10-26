@@ -13,6 +13,8 @@
 
 声明：基本纯让我家大肥鱼跑的，内容我只粗略检查了一下，本人也只是个半吊子学生，有隐性bug大概率也看不出来，这GitHub我也第一次用，之前光下别的大佬的好东西了，有大佬愿意的话欢迎随时指点我、提建议等等都行，爱你♥️
 
+吐槽：这傻鱼写的啥readme啊，我得自己改一下。
+
 ---
 
 ## 它到底管什么
@@ -34,16 +36,14 @@
 2. 打开 NapCat 的 WebUI → **网络配置** → 加一个 **HTTP 服务器**：
    - host `127.0.0.1`，port `3000`（或你喜欢的端口）
    - 需要的话设一个 token，记下来
-3. 手动跑一次、扫码登录一次（之后有登录缓存就不用再扫）。
+3. 手动跑一次、扫码登录一次（之后有登录缓存就不用再扫，缓存时限在几十分钟左右吧）。
 
 ## 安装
 
 ```bash
-# 从 npm 装（发布后）
+# 从 npm 装
 dsh plugin --profile <profile> add dsh-napcat-keeper
 
-# 或从本地目录装（开发时）
-dsh plugin --profile <profile> add C:\path\to\dsh-napcat-keeper
 ```
 
 装完重启一次 DSH（第一次装载才生效），然后去 **设置 → napcat桥**。
@@ -52,8 +52,8 @@ dsh plugin --profile <profile> add C:\path\to\dsh-napcat-keeper
 
 | 填什么 | 说明 |
 | --- | --- |
-| **NapCat Shell 目录** | 用下面的「分盘扫描」找：本机有几块盘就点哪块，扫到后点「用这个」直接填进去；也能手填，例如 `C:/Users/你/NapCat/OneKey/NapCat.<版本>.Shell` |
-| **要快登的 QQ 号** | 填了它，插件优先挑「写死了这个号」的启动脚本；连脚本都没有时，自动生成一个直接调 `NapCatWinBootMain.exe <号>` 的脚本 |
+| **NapCat Shell 目录** | 用下面的「分盘扫描」找：napcat装哪块盘就点哪块，扫到后点「用这个」直接填进去；也能手填，例如 `C:/Users/NapCat/OneKey/NapCat.Shell` |
+| **要快登的 QQ 号** | 填了它，插件优先挑「填的这个号」的启动脚本；连脚本都没有时，自动生成一个直接调 `NapCatWinBootMain.exe <号>` 的脚本 |
 | **OneBot HTTP 端口** | 跟 NapCat 网络配置里的 httpServers 一致（默认 3000） |
 
 点 **保存设置** → 存到 `~/.dsh/napcat-keeper-config.json`，立刻热生效。
@@ -61,7 +61,7 @@ dsh plugin --profile <profile> add C:\path\to\dsh-napcat-keeper
 
 ## 分盘扫描：装在哪都能找到
 
-从 2.2.2 起插件**不再自己猜** NapCat 装在哪（`自动探测` 已删）：`shellDir` 留空就是空，不会悄悄填一个可能填错的目录。
+从 2.2.2 起插件**不再自己猜** NapCat 装在哪：`shellDir` 留空就是空，不会悄悄填一个可能填错的目录。
 设置页第一组是 **分盘扫描**，目录由你来选：
 
 - 本机有几块盘就列几个按钮（盘符取自系统 `DriveInfo`，光驱、移动盘、上锁的卷都会列），点哪个扫哪个；
@@ -72,9 +72,9 @@ dsh plugin --profile <profile> add C:\path\to\dsh-napcat-keeper
   命中后不再往它下面钻（QQ 目录里几千个文件，钻进去只会变慢）。
 - **命中之后再分真假**：目录里只要有 `versions/`、`QQ.exe`、`napcat.mjs` 里的任意一样，就是**真 Shell**
   （标绿 `✓ 像真 Shell：versions/ · QQ.exe`，按钮「用这个」）；三样都没有的标黄
-  `⚠ 没看到 versions/QQ.exe/napcat.mjs`，按钮是「仍要用这个」（没禁用——精简版布局确实可能没有这三样，你更清楚）。
+  `⚠ 没看到 versions/QQ.exe/napcat.mjs`，按钮是「仍要用这个」（肥鱼说精简版布局可能没有这三样，但我自己重装了一边napcat就没这仨了，不管了bro）。
   真 Shell 一律排在前面，不受磁盘遍历顺序影响。
-- **为什么会有两个**：OneKey 安装器会先把壳模板解到 `NapCat\OneKey\bootmain`（只有 `NapCatWinBootMain.exe`
+- **为什么会有多个可能的shell**：OneKey 安装器会先把壳模板解到 `NapCat\OneKey\bootmain`（只有 `NapCatWinBootMain.exe`
   + `napcat.quick.bat`，**没有 QQ 本体**），再把真正的版本装成 `NapCat\<版本>.Shell`（有 `versions/` 和 `QQ.exe`）。
   一次安装留下两个目录，只有后者能拉起来。
 - 每命中一条就列一行：路径、挑出来的启动脚本、是否含 `NapCatWinBootMain.exe`、真假判定，右边按钮一键填入。
@@ -134,12 +134,12 @@ cscript / cmd 直接拉 NapCat，会多出一个控制台窗口挂在桌面上�
 
 ## 记住密码：默认关，开了要自己认风险
 
-NapCat 的**快速登录令牌会失效**（实测几小时到几天），失效后启动脚本只会停在扫码，QQ 就一直离线，
+NapCat 的**快速登录令牌会失效**（实测几小时左右），失效后启动脚本只会停在扫码，QQ 就一直离线，
 `dsh-qq-bridge` 那边则是刷屏的 `ECONNREFUSED 127.0.0.1:3000`。想让它自己能爬起来，就得给它密码。
 
 设置页「自动登录（可不填）」里勾 **记住密码** 时会先弹一段风险提示，要你自己点「我知道风险，仍然开启」才会生效。开启前请确认你接受这几条：
 
-1. 密码以**明文**存进 `~/.dsh/napcat-keeper-config.json` 和插件生成的 `napcat-keeper-env.bat`，不加密（MD5 那份是给 NapCat 兜底用的，等于同一个秘密）。
+1. 密码以**明文**存进 `~/.dsh/napcat-keeper-config.json` 和插件生成的 `napcat-keeper-env.bat`，不加密。
 2. 任何能读你用户目录的程序都能捡走：同步盘、备份工具、其它软件、远控、临时借电脑的人。
 3. QQ 密码往往和 QQ 邮箱、部分游戏、微信登录入口共用一套身份，泄漏面不止一个号。
 4. 插件不打印密码，`/state` 也只回「存没存 + 长度」，但那只是少开一个口子，不等于安全。
@@ -155,8 +155,8 @@ QQ 那条进程链挂在本 DSH 实例下面——DSH 开着它就在，DSH 关�
 
 「刚重启 DSH，QQ 就掉了」不是毛病，是这个默认行为：新实例会自己重新拉起，扫不上就自动密码登录。
 
-要是反过来想要「DSH 关了 QQ 还活着」，才去填「计划任务名」（默认 `NapCat-Keeper-Launch`）+ 勾「自动创建计划任务」，
-那时插件改用 `schtasks /run` 拉，父进程是任务计划服务，DSH 重启牵连不到它——代价是 QQ 的寿命从此跟 DSH 脱钩。
+要是反过来想要「DSH 关了 QQ 还活着」，才去填「计划任务名」（比如 `NapCat-Keeper-Launch` 留空 = 不用计划任务）+ 勾「自动创建计划任务」，
+那时插件改用 `schtasks /run` 拉，父进程是任务计划服务，DSH 重启牵连不到它。
 
 ## 用哪份 Node：默认借 DSH 自带的
 
@@ -173,7 +173,7 @@ QQ 那条进程链挂在本 DSH 实例下面——DSH 开着它就在，DSH 关�
 两种 NapCat 装法的区别：
 
 - **Shell 型**（官方 `NapCat.Shell` 包、目录**顶层**有 `napcat.mjs`）：插件会用上面这份 Node 生成 `~/Dsh/napcat-autogen-node.bat` 去跑 `node napcat.mjs` —— 这是 Node 运行时真正派上用场的地方；
-- **注入型**（OneKey 那种，本机就是）：NapCat 跑在 `QQ.exe` 自己的 Node service 里（`--type=utility --utility-sub-type=node.mojom.NodeService`），磁盘上根本没有 `node.exe`，外面的 Node 也替不了它。这条链路插件只负责调 `NapCatWinBootMain.exe`，跟 Node 无关。
+- **注入型**（OneKey 那种）：NapCat 跑在 `QQ.exe` 自己的 Node service 里（`--type=utility --utility-sub-type=node.mojom.NodeService`），磁盘上根本没有 `node.exe`，外面的 Node 也替不了它。这条链路插件只负责调 `NapCatWinBootMain.exe`，跟 Node 无关。
 
 > 顺带一提：`versions\*\resources\app\napcat\napcat.mjs` 那份**不会**被当成入口——它是等 QQ 注入用的，拿普通 Node 直接跑必崩。
 
@@ -238,11 +238,9 @@ npm run check:privacy              # 只查隐私（发版前必跑）
 
 **清单体检**查这几样：清单能不能 `JSON.parse`、有没有 BOM、是不是合法 UTF-8、有没有出现「鐔欑殑澶ц偉楸」这种双重编码乱码、入口文件在不在、清单版本和 `lib/index.js` 里的 `export const version` 同不同步。JSON 坏掉时直接告诉你第几行第几列，并用 `^` 指到那个字符上（位置 899 那种报错不用再数换行）。
 
-**隐私体检**管包里别夹带本机的东西：家目录绝对路径里的真实用户名、私人邮箱（含 QQ 邮箱）、凭据形状（`ghp_` / `npm_` / `sk-` / `AKIA`、实体 Bearer）、DSH 会话 id、fixture 里像真号的账号。命中就 exit 1，指到 `文件:行`；那一行确实要举例说明什么算泄漏的，写 `check-privacy:ignore` 豁免。
-
 另外三个自测：`npm run smoke:client`（把 `lib/client.js` 塞进假 React 渲染一遍）、`npm run selftest:scan`（造假树验扫盘判定）、`npm run selftest:setup`（临时目录里真跑一遍 apply / 重跑 / undo）。都不依赖本机路径，clone 下来就能跑。
 
-> **改这个插件的文件的规矩**：别用 `Get-Content` 读、`Set-Content -Encoding utf8` 写 —— PowerShell 5.1 会按 ANSI 读、再按 UTF-8 写，一趟往返中文全变乱码，BOM 还照写。用编辑器另存为「UTF-8 无 BOM」，或者
+> **改这个插件的文件的规矩**：别用 `Get-Content` 读、`Set-Content -Encoding utf8` 写 —— PowerShell 5.1 会按 ANSI 读、再按 UTF-8 写，一趟往返中文全变乱码，BOM 还照写。用编辑器另存为「UTF-8 无 BOM」。
 > `[IO.File]::WriteAllText($path, $text, (New-Object System.Text.UTF8Encoding($false)))`。
 
 ## 常见问题
@@ -252,10 +250,10 @@ npm run check:privacy              # 只查隐私（发版前必跑）
 
 **刚关掉 DSH，QQ 就跟着退了？**
 正常，默认就是这样：QQ 挂在 DSH 下面，DSH 一走它就走。下次开 DSH 会重新拉一条。
-想反过来（DSH 关了 QQ 还活着）才去填「计划任务名」+ 勾「自动创建计划任务」。
+想反过来（DSH 关了napcat还活着）去填「计划任务名」+ 勾「自动创建计划任务」。
 
 **两个 QQ 客户端互相踢？**
-去重会兜住，但根因通常是有人手动又点了一次 `napcat.bat`。点「去重复链」立刻收敛。
+去重会兜住，但根因通常是有人又点了一次 `napcat.bat`。点「去重复链」立刻收敛。
 
 **换端口了？**
 改「OneBot HTTP 端口」保存即可；如果同时换了 Shell 目录，跨进程锁会自动清掉。
