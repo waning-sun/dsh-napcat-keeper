@@ -54,7 +54,7 @@ dsh plugin --profile <profile> add dsh-napcat-keeper
 | **要快登的 QQ 号** | 填了它，插件优先挑「填的这个号」的启动脚本；连脚本都没有时，自动生成一个直接调 `NapCatWinBootMain.exe <号>` 的脚本 |
 | **OneBot HTTP 端口** | 跟 NapCat 网络配置里的 httpServers 一致（默认 3000） |
 
-点 **保存设置** → 存到 `~/.dsh/napcat-keeper-config.json`，立刻热生效。
+点 **保存设置** → 存到 `~/.dsh/dsh-napcat-keeper/config.json`，立刻热生效。
 回「状态」看：在线会显示昵称和 QQ 号；离线就点「拉起 NapCat」。
 
 ## 分盘扫描：装在哪都能找到
@@ -115,7 +115,7 @@ DSH 自己是普通权限。插件要碰「装系统的位置」（往防火墙�
 | 事 | 会做什么 | 要不要管理员 |
 | --- | --- | --- |
 | 自动启动脚本 | 在 `shellDir` 里补一个 `napcat.quick.auto.bat`（写死账号和 `NapCatWinBootMain.exe` 路径） | 看那个目录你能不能写，不能写才需要 |
-| 中间层 | 写 `napcat-keeper-env.bat`：把密码塞进环境变量再 call 启动脚本 | 不需要 |
+| 中间层 | 写 `env.bat`：把密码塞进环境变量再 call 启动脚本 | 不需要 |
 | 计划任务 | 用 `schtasks` 建用户级任务（要不要隐藏黑框跟着设置走） | 不需要 |
 | 防火墙放行 | `New-NetFirewallRule` 放行 OneBot 端口入站 | 需要 |
 
@@ -126,7 +126,7 @@ DSH 自己是普通权限。插件要碰「装系统的位置」（往防火墙�
 ## 桌面上那个黑框
 
 cscript / cmd 直接拉 NapCat，会多出一个控制台窗口挂在桌面上。默认行为是**不显示**：
-计划任务的动作写的是 `wscript.exe "<DSH 家目录>\napcat-keeper-launch.vbs"`，这个壳里用
+计划任务的动作写的是 `wscript.exe "<DSH 家目录>\dsh-napcat-keeper\launch.vbs"`（绝对路径），这个壳里用
 `sh.Run cmd, 0, False` 把真正的 cmd 以隐藏窗口启动（`0` = SW_HIDE）。壳文件用 UTF-16LE 存，中文路径也认。
 
 不想要隐藏就把「拉起时不显示黑框」关掉，任务会退回直接跑 `cmd.exe`；已经跑起来的那条链想收窗口，
@@ -139,7 +139,7 @@ NapCat 的**快速登录令牌会失效**（实测几小时左右），失效后
 
 设置页「自动登录（可不填）」里勾 **记住密码** 时会先弹一段风险提示，要你自己点「我知道风险，仍然开启」才会生效。开启前请确认你接受这几条：
 
-1. 密码以**明文**存进 `~/.dsh/napcat-keeper-config.json` 和插件生成的 `napcat-keeper-env.bat`，不加密。
+1. 密码以**明文**存进 `~/.dsh/dsh-napcat-keeper/config.json` 和同目录下插件生成的 `env.bat`，不加密。
 2. 任何能读你用户目录的程序都能捡走：同步盘、备份工具、其它软件、远控、临时借电脑的人。
 3. QQ 密码往往和 QQ 邮箱、部分游戏、微信登录入口共用一套身份，泄漏面不止一个号。
 4. 插件不打印密码，`/state` 也只回「存没存 + 长度」，但那只是少开一个口子，不等于安全。
@@ -172,7 +172,7 @@ QQ 那条进程链挂在本 DSH 实例下面——DSH 开着它就在，DSH 关�
 
 两种 NapCat 装法的区别：
 
-- **Shell 型**（官方 `NapCat.Shell` 包、目录**顶层**有 `napcat.mjs`）：插件会用上面这份 Node 生成 `~/.dsh/napcat-autogen-node.bat` 去跑 `node napcat.mjs` —— 这是 Node 运行时真正派上用场的地方；
+- **Shell 型**（官方 `NapCat.Shell` 包、目录**顶层**有 `napcat.mjs`）：插件会用上面这份 Node 生成 `~/.dsh/dsh-napcat-keeper/autogen-node.bat` 去跑 `node napcat.mjs` —— 这是 Node 运行时真正派上用场的地方；
 - **注入型**（OneKey 那种）：NapCat 跑在 `QQ.exe` 自己的 Node service 里（`--type=utility --utility-sub-type=node.mojom.NodeService`），磁盘上根本没有 `node.exe`，外面的 Node 也替不了它。这条链路插件只负责调 `NapCatWinBootMain.exe`，跟 Node 无关。
 
 > 顺带一提：`versions\*\resources\app\napcat\napcat.mjs` 那份**不会**被当成入口——它是等 QQ 注入用的，拿普通 Node 直接跑必崩。
@@ -215,24 +215,32 @@ QQ 那条进程链挂在本 DSH 实例下面——DSH 开着它就在，DSH 关�
 | `bridgeStaleSec` | `180` | `dsh-qq-bridge` 的 state 多久没更新就警告 |
 | `maxLogBytes` | `1048576` | 日志超这么多字节就滚动一次 |
 
-剩下几个是路径类字段（`configPath` / `logPath` / `launcherLog` / `lockPath` / `statePath` / `qrCopyPath` / `bridgeStatePath`），默认都落在 `~/.dsh/` 下，一般不用碰。
+剩下几个是路径类字段（`configPath` / `logPath` / `launcherLog` / `lockPath` / `statePath` / `qrCopyPath` / `bridgeStatePath`），默认都落在 `~/.dsh/dsh-napcat-keeper/` 下（`bridgeStatePath` 例外，那是 `dsh-qq-bridge` 的文件，留在 `~/.dsh/` 根上），一般不用碰。
 
 ## 文件都在哪
 
+插件产生的东西全在 `~/.dsh/dsh-napcat-keeper/` 一个目录里，DSH 自己的目录不会被它塞满：
+
 ```
-~/.dsh/napcat-keeper.log           看门狗日志（超 1MB 自动滚动）
-~/.dsh/napcat-keeper-launch.log    启动脚本的原始输出（扫码提示都在这）
-~/.dsh/napcat-keeper-config.json   设置页保存的配置
-~/.dsh/napcat-keeper-env.bat       只在「记住密码」开启时生成：把密码塞进环境变量给启动脚本
-~/.dsh/napcat-keeper-state.json    每轮 tick 的状态快照
-~/.dsh/napcat-qr.png               最近一张二维码副本（扫码时会更新）
-~/.dsh/napcat-autogen-node.bat     Shell 型专用：拿 DSH 自带的 node 跑 napcat.mjs
-~/.dsh/napcat-autogen.bat          没现成启动脚本时生成：直接调 NapCatWinBootMain.exe
-~/.dsh/napcat-keeper-setup/        提权交接目录：plan.json / apply.ps1 / apply-admin.cmd
-                                   / undo-admin.cmd / result.json / run.log / README.txt
+~/.dsh/dsh-napcat-keeper/
+├── config.json         设置页保存的配置
+├── keeper.log          看门狗日志（超 1MB 自动滚动）
+├── launch.log          启动脚本的原始输出（扫码提示都在这）
+├── state.json          每轮 tick 的状态快照
+├── lock.json           跨进程拉起锁（防两个 DSH 同时拉）
+├── qr.png              最近一张二维码副本（扫码时更新）
+├── env.bat             只在「记住密码」开启时生成：把密码塞进环境变量给启动脚本
+├── launch.vbs          「自动创建计划任务」时生成的无窗口壳，计划任务调它
+├── autogen-node.bat    Shell 型专用：拿 DSH 自带的 node 跑 napcat.mjs
+├── autogen.bat         没现成启动脚本时生成：直接调 NapCatWinBootMain.exe
+├── setup/              提权交接目录：plan.json / apply.ps1 / apply-admin.cmd
+│                       / undo-admin.cmd / result.json / run.log / README.txt
+└── legacy/             老版本遗留的配置备份等，不参与运行，整个删掉也没事
 ```
 
-那两份 `napcat-autogen*.bat` 只在需要时出现（每次拉起前按当前配置重写，删掉也会自己长回来）。
+- `env.bat` 只在「记住密码」开启时才有；两份 `autogen*.bat` 只在需要时出现（每次拉起前按当前配置重写，删掉也会自己长回来）。整个目录删掉 = 插件回到没配置过的状态。
+- **从老版本升上来（< 2.7.0）**：第一次启动会自动把原来散在 `~/.dsh` 根上的文件搬进这个目录（`napcat-keeper-config.json` → `config.json` 这种），改名一次就固定；计划任务里写死的旧路径也会一并改指新位置 —— 那一步用 `schtasks /change` 就地改，不结束正在跑的 QQ。老备份之类的零碎挪进 `legacy/`。
+- `~/.dsh/qq-bridge-state.json` **不在**这个目录里，也不归这个插件：它由 `dsh-qq-bridge` 写，插件只是读一下它的时间戳，判断那边轮询还活着没有。
 
 ## 出事了先跑体检：`npm run check`
 
@@ -259,7 +267,7 @@ npm run check:privacy              # 只查隐私（发版前必跑）
 ## 常见问题
 
 **「离线」但进程明明还在？**
-端口没通。看 `napcat-keeper-launch.log`，多半是卡在扫码，或者 QQ 弹了验证窗。
+端口没通。看 `~/.dsh/dsh-napcat-keeper/launch.log`，多半是卡在扫码，或者 QQ 弹了验证窗。
 
 **刚关掉 DSH，QQ 就跟着退了？**
 正常，默认就是这样：QQ 挂在 DSH 下面，DSH 一走它就走。下次开 DSH 会重新拉一条。

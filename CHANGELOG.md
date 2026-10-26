@@ -1,5 +1,29 @@
 # Changelog
 
+## 2.7.0 — 插件自己的文件收进 `~/.dsh/dsh-napcat-keeper/`
+- **为什么要动这个**：以前插件产生的东西全都摊在 `~/.dsh` 根上（配置、日志、状态、二维码、生成的 bat/vbs、提权脚本），和 DSH 自己的 `AGENT.md`、`profiles/`、一堆别的插件的文件混在一起，压根看不出哪些是它写的。现在一个目录装完自己的全部家当。
+- **新布局**（`~/.dsh/dsh-napcat-keeper/`）：
+
+  | 文件 | 是什么 | 老名字 |
+  | --- | --- | --- |
+  | `config.json` | 设置页存下来的配置 | `napcat-keeper-config.json` |
+  | `keeper.log` | 看门狗自己的日志 | `napcat-keeper.log` |
+  | `launch.log` | 拉起 QQ 那一路的输出 | `napcat-keeper-launch.log` |
+  | `state.json` | 给人看的运行状态快照 | `napcat-keeper-state.json` |
+  | `lock.json` | 跨进程拉起锁 | `napcat-keeper.lock.json` |
+  | `qr.png` | 待扫二维码的副本 | `napcat-qr.png` |
+  | `env.bat` | 「记住密码」中间层（含密码明文） | `napcat-keeper-env.bat` |
+  | `launch.vbs` | 无窗口壳，计划任务调它 | `napcat-keeper-launch.vbs` |
+  | `autogen.bat` / `autogen-node.bat` | 自动生成的启动脚本 | `napcat-autogen*.bat` |
+  | `setup/` | 提权交接脚本（apply.ps1 等） | `napcat-keeper-setup/` |
+  | `legacy/` | 老版本遗留的配置备份等，不参与运行 | —（原来散在根上） |
+
+- **自动搬迁**：`migrateLegacyFiles()` 在启动解析配置时跑一次，能 rename 就 rename（同卷原子），跨卷才退回复制再删；目标已存在时不动旧文件，旧文件自己会落到 `legacy/`。已经搬过就不再重复（按目录记住）。
+- **计划任务跟着改**：任务动作里写死的是 `wscript.exe "<vbs>"` 这种绝对路径，文件搬家后指向不存在的脚本 = 开机静默失败。新增 `repairTaskActions()`：只在动作对不上时用 `schtasks /change /tr` 就地改一次，**不 `/end`**，正在跑的 QQ 不会被踢下线。
+- **不搬的**：`qq-bridge-state.json` 属于 `dsh-qq-bridge`（我们只是读一下它的时间戳），`profiles/`、`package.json` 属于 DSH 自身，全都留在原地。
+- **验证**：`npm run smoke:client` PASS、`selftest:scan` 15/15、`selftest:setup` 45 通过 0 失败、`npm run check`（清单 + 隐私）双绿；真实环境里跑一次搬迁，配置/日志/二维码/中间层全部落到新目录，`napcat_status` 仍在线。
+- 版本 2.7.0。
+
 ## 2.6.0 — 清死代码 + README 与代码对齐
 - **删掉的死代码**（都确认过没有任何调用点，删了行为不变）：
   - v2.2.2 起停用的目录自动探测三件套 `looksLikeShellDir()` / `findShellDirs()` / `detectShellDir()` —— 从那次起 `shellDir` 只认用户在设置页选的，这几个函数只被彼此和调试用的 `__internals` 引用；

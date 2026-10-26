@@ -24,7 +24,7 @@ writeFileSync(path.join(fakeShell, 'NapCatWinBootMain.exe'), '', 'utf8')
 const cfg = internals.resolveConfig({})
 cfg.shellDir = fakeShell
 cfg.launcherScript = 'napcat.quick2.bat'
-cfg.launcherLog = path.join(fakeLogDir, 'napcat-keeper-launch.log')
+cfg.launcherLog = path.join(fakeLogDir, 'launch.log')
 cfg.taskName = 'NapCat-Keeper-Selftest'
 cfg.launchAccount = '10001'
 cfg.launchArgs = ''
@@ -139,10 +139,10 @@ if (first) {
   ok(first.results.length === 4, '4 条结果')
 }
 ok(existsSync(path.join(fakeShell, 'napcat.quick.auto.bat')), 'launcher: 启动脚本写出来了')
-ok(existsSync(path.join(fakeLogDir, 'napcat-keeper-env.bat')), 'envbat: 中间层写出来了')
-ok(existsSync(path.join(fakeLogDir, 'napcat-keeper-launch.vbs')), 'task-wrapper: vbs 写出来了')
+ok(existsSync(path.join(fakeLogDir, 'env.bat')), 'envbat: 中间层写出来了')
+ok(existsSync(path.join(fakeLogDir, 'launch.vbs')), 'task-wrapper: vbs 写出来了')
 
-const envBat = readFileSync(path.join(fakeLogDir, 'napcat-keeper-env.bat'), 'utf8')
+const envBat = readFileSync(path.join(fakeLogDir, 'env.bat'), 'utf8')
 ok(envBat.includes('NAPCAT_QUICK_PASSWORD=selftest-pass-123'), 'env bat 里带密码（这是它的用途）')
 ok(envBat.includes('call "'), 'env bat 会 call 真启动脚本')
 
@@ -186,8 +186,8 @@ const undone = internals.readSetupResult()
 ok(undone && undone.mode === 'undo', 'result 里 mode = undo')
 ok(undone && undone.ok === true, '撤回每步都成', JSON.stringify(undone && undone.results.filter((r) => !r.ok)))
 ok(!existsSync(path.join(fakeShell, 'napcat.quick.auto.bat')), '启动脚本删掉了')
-ok(!existsSync(path.join(fakeLogDir, 'napcat-keeper-env.bat')), '中间层删掉了（密码不留在磁盘）')
-ok(!existsSync(path.join(fakeLogDir, 'napcat-keeper-launch.vbs')), 'vbs 删掉了')
+ok(!existsSync(path.join(fakeLogDir, 'env.bat')), '中间层删掉了（密码不留在磁盘）')
+ok(!existsSync(path.join(fakeLogDir, 'launch.vbs')), 'vbs 删掉了')
 try {
   execFileSync('schtasks.exe', ['/query', '/tn', cfg.taskName], { stdio: 'ignore', windowsHide: true })
   ok(false, '计划任务还在（应该删掉）')

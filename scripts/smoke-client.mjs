@@ -60,9 +60,9 @@ function collect(tree) {
 render(); // 第一次：态=null 的 loading 分支
 states[0] = {
   ok: true,
-  version: '2.2.2',
+  version: '2.7.0',
   config: {
-    configPath: 'C:/x/napcat-keeper-config.json', logPath: 'C:/x/napcat-keeper.log',
+    configPath: 'C:/Users/x/.dsh/dsh-napcat-keeper/config.json', logPath: 'C:/Users/x/.dsh/dsh-napcat-keeper/keeper.log',
     shellDir: 'C:/Users/x/NapCat/OneKey/NapCat.52230.Shell', launcherScript: 'napcat.quick2.bat',
     launchAccount: '1000000000', launchArgs: '', onebotPort: 3000, accessToken: '',
     taskName: 'NapCat-Keeper-Launch', rememberPassword: true, autoCreateTask: true,
@@ -78,10 +78,10 @@ states[0] = {
   scan: { running: false, found: [], drives: ['C:'], visited: 0, elapsedMs: 0, limitHit: false, cancelled: false },
   drives: ['C:', 'D:', 'E:'],
   setup: {
-    dir: 'C:/Users/x/.dsh/napcat-keeper-setup',
-    cmdPath: 'C:/Users/x/.dsh/napcat-keeper-setup/apply-admin.cmd',
-    ps1Path: 'C:/Users/x/.dsh/napcat-keeper-setup/apply.ps1',
-    undoCmdPath: 'C:/Users/x/.dsh/napcat-keeper-setup/undo-admin.cmd',
+    dir: 'C:/Users/x/.dsh/dsh-napcat-keeper/setup',
+    cmdPath: 'C:/Users/x/.dsh/dsh-napcat-keeper/setup/apply-admin.cmd',
+    ps1Path: 'C:/Users/x/.dsh/dsh-napcat-keeper/setup/apply.ps1',
+    undoCmdPath: 'C:/Users/x/.dsh/dsh-napcat-keeper/setup/undo-admin.cmd',
     exists: true,
     needs: [
       { id: 'launcher', label: '自动启动脚本', hint: '补一个 napcat.quick.auto.bat', ready: true, why: '', needAdmin: false },
@@ -179,7 +179,7 @@ check('显示上次生成 2 步', /上次生成：.*2 步/.test(setupOut.text));
 check('显示上次执行 1/2 步成', /执行：1\/2 步成/.test(setupOut.text));
 check('显示用了管理员', setupOut.text.includes('用了管理员'));
 check('失败项有 ✗', setupOut.text.includes('✗ 放行防火墙：没权限'));
-check('显示脚本目录', setupOut.text.includes('napcat-keeper-setup'));
+check('显示脚本目录', setupOut.text.includes('dsh-napcat-keeper'));
 
 // 没生成过 / 还没跑过
 const keepSetup = states[0].setup;
