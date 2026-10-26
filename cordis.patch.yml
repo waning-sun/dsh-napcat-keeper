@@ -1,0 +1,27 @@
+# dsh-napcat-keeper 的 bundle patch：把看门狗这一行插进 profile 的插件名册。
+# 装法：dsh plugin --profile <profile> add <本目录或 npm 包名>
+#      （bundle patch 会自动应用，别再在 profile 的 cordis.patch.yml 里手插一遍，重复 id 会让 loader 崩）
+#
+# 这里的 config 只是「初始默认」。装完之后请在
+#   DSH → 设置 → napcat桥
+# 里填配置并保存 —— 那份（~/.dsh/napcat-keeper-config.json）优先级更高，
+# 改完立刻生效，不用重启 DSH。
+- insert:
+    - id: napcat-keeper
+      name: 'dsh-napcat-keeper'
+      config:
+        enabled: true
+        # ↓ 全部可留空 = 自动探测；下面这些只是给「不想用界面」的人参考的字段
+        # shellDir: 'C:/Users/你/NapCat/OneKey/NapCat.<版本>.Shell'
+        # launcherScript: 'napcat.quick.bat'
+        # launchAccount: '10001'
+        # onebotPort: 3000
+        # accessToken: ''
+        # taskName: 'NapCat-Keeper-Launch'
+        # autoCreateTask: true
+        # probeIntervalSec: 45
+        # launchGraceSec: 150
+        # scanTimeoutSec: 300
+        # maxScanRetries: 2
+        # stuckSec: 420
+        # chainGapSec: 120

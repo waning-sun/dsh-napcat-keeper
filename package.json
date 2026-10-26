@@ -1,0 +1,51 @@
+{
+  "name": "dsh-napcat-keeper",
+  "version": "2.0.1",
+  "description": "发现没有能够随着dsh打开自动启动napcat的插件，遂使用大肥鱼制作此插件，建议搭配Yuuyuko-uu的dsh-qq-bridge使用~",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "cordis.patch.yml",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "deepseek-harness",
+    "dsh-plugin",
+    "napcat",
+    "onebot",
+    "qq",
+    "watchdog",
+    "dsh-qq-bridge"
+  ],
+  "author": "熙的大肥鱼",
+  "license": "MIT",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "slots"
+      ],
+      "external": [
+        "react"
+      ]
+    }
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dshTarget": "0.2.1-rc.2",
+  "publishConfig": {
+    "access": "public"
+  }
+}
