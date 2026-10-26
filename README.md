@@ -52,7 +52,7 @@ dsh plugin --profile <profile> add dsh-napcat-keeper
 
 | 填什么 | 说明 |
 | --- | --- |
-| **NapCat Shell 目录** | 用下面的「分盘扫描」找：napcat装哪块盘就点哪块，扫到后点「用这个」直接填进去；也能手填，例如 `C:/Users/NapCat/OneKey/NapCat.Shell` |
+| **NapCat Shell 目录** | 用下面的「分盘扫描」找：napcat装哪块盘就点哪块，扫到后点「用这个」直接填进去；也能手填，例如 `C:/Users/你/NapCat/OneKey/NapCat.Shell` |
 | **要快登的 QQ 号** | 填了它，插件优先挑「填的这个号」的启动脚本；连脚本都没有时，自动生成一个直接调 `NapCatWinBootMain.exe <号>` 的脚本 |
 | **OneBot HTTP 端口** | 跟 NapCat 网络配置里的 httpServers 一致（默认 3000） |
 
