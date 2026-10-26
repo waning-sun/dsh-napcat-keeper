@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.1.1
+
+- 修：风险清单里的 **明文** 在设置页会原样显示成星号，改成「明文」。
+
 ## 2.1.0 — 可选「记住密码」，并先把风险说清楚
 
 - 新增 **`rememberPassword` + `quickPassword`**：勾上后令牌失效时用密码自动登录（NapCat 读环境变量 `NAPCAT_QUICK_PASSWORD` / `NAPCAT_QUICK_PASSWORD_MD5`）。默认关。
