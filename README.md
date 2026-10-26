@@ -1,6 +1,6 @@
 # dsh-napcat-keeper
 
-发现没有能够随着dsh打开自动启动napcat的插件，遂使用大肥鱼制作此插件，建议搭配[Yuuyuko-uu 的 dsh-qq-bridge](https://github.com/Yuuyuko-uu/dsh-qq-bridge)使用~
+发现没有能够随着 DSH 打开自动启动 NapCat 的插件，遂使用大肥鱼制作此插件，建议搭配[Yuuyuko-uu 的 dsh-qq-bridge](https://github.com/Yuuyuko-uu/dsh-qq-bridge)使用~
 
 给 [NapCat](https://napneko.github.io/)（QQ 协议端）配一个看门狗：**DSH 在，QQ 就在**。
 
@@ -41,9 +41,7 @@
 ## 安装
 
 ```bash
-# 从 npm 装
 dsh plugin --profile <profile> add dsh-napcat-keeper
-
 ```
 
 装完重启一次 DSH（第一次装载才生效），然后去 **设置 → napcat桥**。
@@ -52,7 +50,7 @@ dsh plugin --profile <profile> add dsh-napcat-keeper
 
 | 填什么 | 说明 |
 | --- | --- |
-| **NapCat Shell 目录** | 用下面的「分盘扫描」找：napcat装哪块盘就点哪块，扫到后点「用这个」直接填进去；也能手填，例如 `C:/Users/你/NapCat/OneKey/NapCat.Shell` |
+| **NapCat Shell 目录** | 用下面的「分盘扫描」找：NapCat 装哪块盘就点哪块，扫到后点「用这个」直接填进去；也能手填，例如 `C:/Users/你/NapCat/OneKey/NapCat.Shell` |
 | **要快登的 QQ 号** | 填了它，插件优先挑「填的这个号」的启动脚本；连脚本都没有时，自动生成一个直接调 `NapCatWinBootMain.exe <号>` 的脚本 |
 | **OneBot HTTP 端口** | 跟 NapCat 网络配置里的 httpServers 一致（默认 3000） |
 
@@ -72,11 +70,13 @@ dsh plugin --profile <profile> add dsh-napcat-keeper
   命中后不再往它下面钻（QQ 目录里几千个文件，钻进去只会变慢）。
 - **命中之后再分真假**：目录里只要有 `versions/`、`QQ.exe`、`napcat.mjs` 里的任意一样，就是**真 Shell**
   （标绿 `✓ 像真 Shell：versions/ · QQ.exe`，按钮「用这个」）；三样都没有的标黄
-  `⚠ 没看到 versions/QQ.exe/napcat.mjs`，按钮是「仍要用这个」（肥鱼说精简版布局可能没有这三样，但我自己重装了一边napcat就没这仨了，不管了bro）。
+  `⚠ 没看到 versions/QQ.exe/napcat.mjs`，按钮是「仍要用这个」。
+  这个判据只是经验值，精简版布局有可能三样都不带（我自己重装了一遍 NapCat 就没这仨，不管了 bro），
+  所以「标黄」不等于「不能用」，点「仍要用这个」照样能填进去。
   真 Shell 一律排在前面，不受磁盘遍历顺序影响。
-- **为什么会有多个可能的shell**：OneKey 安装器会先把壳模板解到 `NapCat\OneKey\bootmain`（只有 `NapCatWinBootMain.exe`
+- **为什么会有好几个候选**：OneKey 安装器会先把壳模板解到 `NapCat\OneKey\bootmain`（只有 `NapCatWinBootMain.exe`
   + `napcat.quick.bat`，**没有 QQ 本体**），再把真正的版本装成 `NapCat\<版本>.Shell`（有 `versions/` 和 `QQ.exe`）。
-  一次安装留下两个目录，只有后者能拉起来。
+  一次安装可能留下多个目录，只有带 QQ 本体的那个能拉起来。
 - 每命中一条就列一行：路径、挑出来的启动脚本、是否含 `NapCatWinBootMain.exe`、真假判定，右边按钮一键填入。
 - 到时间/到数量上限会明确写「结果可能不全」，不会闷头扫一小时。
 
@@ -126,7 +126,7 @@ DSH 自己是普通权限。插件要碰「装系统的位置」（往防火墙�
 ## 桌面上那个黑框
 
 cscript / cmd 直接拉 NapCat，会多出一个控制台窗口挂在桌面上。默认行为是**不显示**：
-计划任务的动作写的是 `wscript.exe "<dsh家目录>\napcat-keeper-launch.vbs"`，这个壳里用
+计划任务的动作写的是 `wscript.exe "<DSH 家目录>\napcat-keeper-launch.vbs"`，这个壳里用
 `sh.Run cmd, 0, False` 把真正的 cmd 以隐藏窗口启动（`0` = SW_HIDE）。壳文件用 UTF-16LE 存，中文路径也认。
 
 不想要隐藏就把「拉起时不显示黑框」关掉，任务会退回直接跑 `cmd.exe`；已经跑起来的那条链想收窗口，
@@ -155,7 +155,7 @@ QQ 那条进程链挂在本 DSH 实例下面——DSH 开着它就在，DSH 关�
 
 「刚重启 DSH，QQ 就掉了」不是毛病，是这个默认行为：新实例会自己重新拉起，扫不上就自动密码登录。
 
-要是反过来想要「DSH 关了 QQ 还活着」，才去填「计划任务名」（比如 `NapCat-Keeper-Launch` 留空 = 不用计划任务）+ 勾「自动创建计划任务」，
+要是反过来想要「DSH 关了 QQ 还活着」，才去填「计划任务名」那一栏（比如 `NapCat-Keeper-Launch`；**留空 = 走 cscript，跟着 DSH 生灭**）+ 勾「自动创建计划任务」，
 那时插件改用 `schtasks /run` 拉，父进程是任务计划服务，DSH 重启牵连不到它。
 
 ## 用哪份 Node：默认借 DSH 自带的
@@ -172,7 +172,7 @@ QQ 那条进程链挂在本 DSH 实例下面——DSH 开着它就在，DSH 关�
 
 两种 NapCat 装法的区别：
 
-- **Shell 型**（官方 `NapCat.Shell` 包、目录**顶层**有 `napcat.mjs`）：插件会用上面这份 Node 生成 `~/Dsh/napcat-autogen-node.bat` 去跑 `node napcat.mjs` —— 这是 Node 运行时真正派上用场的地方；
+- **Shell 型**（官方 `NapCat.Shell` 包、目录**顶层**有 `napcat.mjs`）：插件会用上面这份 Node 生成 `~/.dsh/napcat-autogen-node.bat` 去跑 `node napcat.mjs` —— 这是 Node 运行时真正派上用场的地方；
 - **注入型**（OneKey 那种）：NapCat 跑在 `QQ.exe` 自己的 Node service 里（`--type=utility --utility-sub-type=node.mojom.NodeService`），磁盘上根本没有 `node.exe`，外面的 Node 也替不了它。这条链路插件只负责调 `NapCatWinBootMain.exe`，跟 Node 无关。
 
 > 顺带一提：`versions\*\resources\app\napcat\napcat.mjs` 那份**不会**被当成入口——它是等 QQ 注入用的，拿普通 Node 直接跑必崩。
@@ -201,14 +201,21 @@ QQ 那条进程链挂在本 DSH 实例下面——DSH 开着它就在，DSH 关�
 | `accessToken` | 空 | OneBot access token |
 | `taskName` | 空（= 用 cscript，QQ 跟着 DSH 生灭） | 想脱离 DSH 才填计划任务名 |
 | `autoCreateTask` | `false` | 填了 `taskName` 且任务不存在时自动创建 |
+| `hideConsole` | `true` | 拉起时不显示黑框（用 wscript 壳藏窗口） |
 | `probeIntervalSec` | `45` | 复查间隔 |
 | `launchGraceSec` | `150` | 拉起后的宽限期 |
+| `qrFreshSec` | `300` | 二维码新鲜度窗口：比这新 = 还在等人扫 |
 | `scanTimeoutSec` | `300` | 扫码等待上限 |
 | `maxScanRetries` | `2` | 扫码重试上限 |
 | `stuckSec` | `420` | 卡死判定 |
+| `heartbeatSec` | `600` | 一切正常时的心跳日志间隔 |
 | `chainGapSec` | `120` | 重复链判定窗口 |
+| `maxQqPerChain` | `4` | 单条链该有几条 `QQ.exe`，判重时的参考值 |
 | `procPathMatch` | 空（由 shellDir 推两层） | 只在这个路径前缀下找 QQ/NapCat 进程 |
-| `bridgeStaleSec` | `180` | `qq-bridge` 的 state 多久没更新就警告 |
+| `bridgeStaleSec` | `180` | `dsh-qq-bridge` 的 state 多久没更新就警告 |
+| `maxLogBytes` | `1048576` | 日志超这么多字节就滚动一次 |
+
+剩下几个是路径类字段（`configPath` / `logPath` / `launcherLog` / `lockPath` / `statePath` / `qrCopyPath` / `bridgeStatePath`），默认都落在 `~/.dsh/` 下，一般不用碰。
 
 ## 文件都在哪
 
@@ -219,9 +226,13 @@ QQ 那条进程链挂在本 DSH 实例下面——DSH 开着它就在，DSH 关�
 ~/.dsh/napcat-keeper-env.bat       只在「记住密码」开启时生成：把密码塞进环境变量给启动脚本
 ~/.dsh/napcat-keeper-state.json    每轮 tick 的状态快照
 ~/.dsh/napcat-qr.png               最近一张二维码副本（扫码时会更新）
+~/.dsh/napcat-autogen-node.bat     Shell 型专用：拿 DSH 自带的 node 跑 napcat.mjs
+~/.dsh/napcat-autogen.bat          没现成启动脚本时生成：直接调 NapCatWinBootMain.exe
 ~/.dsh/napcat-keeper-setup/        提权交接目录：plan.json / apply.ps1 / apply-admin.cmd
                                    / undo-admin.cmd / result.json / run.log / README.txt
 ```
+
+那两份 `napcat-autogen*.bat` 只在需要时出现（每次拉起前按当前配置重写，删掉也会自己长回来）。
 
 ## 出事了先跑体检：`npm run check`
 
@@ -238,19 +249,21 @@ npm run check:privacy              # 只查隐私（发版前必跑）
 
 **清单体检**查这几样：清单能不能 `JSON.parse`、有没有 BOM、是不是合法 UTF-8、有没有出现「鐔欑殑澶ц偉楸」这种双重编码乱码、入口文件在不在、清单版本和 `lib/index.js` 里的 `export const version` 同不同步。JSON 坏掉时直接告诉你第几行第几列，并用 `^` 指到那个字符上（位置 899 那种报错不用再数换行）。
 
+**隐私体检**是发版前那道闸：把包里所有文本文件过一遍，找 Windows / Unix 家目录路径、邮箱、`ghp_` / `npm_` / `sk-` / `AKIA` 这类凭证、`Bearer` 后面的真串、DSH 会话 id，以及自测里那种 `launchAccount: '1234567890'` 的真实 QQ 号。命中就按 `文件:行` 列出来并返回非 0；确实是文档里必须留的示例，在那行末尾写 `check-privacy:ignore` 放过。占位写法（`C:/Users/你/…`、`C:/Users/x/…`）本来就放行。
+
 另外三个自测：`npm run smoke:client`（把 `lib/client.js` 塞进假 React 渲染一遍）、`npm run selftest:scan`（造假树验扫盘判定）、`npm run selftest:setup`（临时目录里真跑一遍 apply / 重跑 / undo）。都不依赖本机路径，clone 下来就能跑。
 
-> **改这个插件的文件的规矩**：别用 `Get-Content` 读、`Set-Content -Encoding utf8` 写 —— PowerShell 5.1 会按 ANSI 读、再按 UTF-8 写，一趟往返中文全变乱码，BOM 还照写。用编辑器另存为「UTF-8 无 BOM」。
+> **改这个插件的文件的规矩**：别用 `Get-Content` 读、`Set-Content -Encoding utf8` 写 —— PowerShell 5.1 会按 ANSI 读、再按 UTF-8 写，一趟往返中文全变乱码，BOM 还照写。用编辑器另存为「UTF-8 无 BOM」；非要脚本写，就走
 > `[IO.File]::WriteAllText($path, $text, (New-Object System.Text.UTF8Encoding($false)))`。
 
 ## 常见问题
 
 **「离线」但进程明明还在？**
-端口没通。看 `napcat-keeper-launch.log`多半是卡在扫码，或者 QQ 弹了验证窗。
+端口没通。看 `napcat-keeper-launch.log`，多半是卡在扫码，或者 QQ 弹了验证窗。
 
 **刚关掉 DSH，QQ 就跟着退了？**
 正常，默认就是这样：QQ 挂在 DSH 下面，DSH 一走它就走。下次开 DSH 会重新拉一条。
-想反过来（DSH 关了napcat还活着）去填「计划任务名」+ 勾「自动创建计划任务」。
+想反过来（DSH 关了 NapCat 还活着）去填「计划任务名」+ 勾「自动创建计划任务」。
 
 **两个 QQ 客户端互相踢？**
 去重会兜住，但根因通常是有人又点了一次 `napcat.bat`。点「去重复链」立刻收敛。

@@ -1,5 +1,25 @@
 # Changelog
 
+## 2.6.0 — 清死代码 + README 与代码对齐
+- **删掉的死代码**（都确认过没有任何调用点，删了行为不变）：
+  - v2.2.2 起停用的目录自动探测三件套 `looksLikeShellDir()` / `findShellDirs()` / `detectShellDir()` —— 从那次起 `shellDir` 只认用户在设置页选的，这几个函数只被彼此和调试用的 `__internals` 引用；
+  - `napcatRoot(cfg)` —— 只在声明处出现过一次；
+  - `__internals` 里同步摘掉 `detectShellDir`。
+  合计 `lib/index.js` 从 3332 行降到 3262 行。
+- **PowerShell 调用收口**：新增 `psArgs()` / `runPs()` / `runPsSync()` 三个薄封装，原先 7 个调用点各自手抄一份 `['-NoProfile', '-NonInteractive', '-Command', …]`（漏一个参数就难查）。`where`/`tasklist`/`schtasks` 这些非 PowerShell 的调用保持原样。
+- **措辞跟现状对齐**：3 处还写着「自动探测」的注释/字段说明改成「在目录里挑」「点分盘扫描找」；`detectLauncher` 的注释原先和函数挤在同一行，拆开。
+- **README 统一**（这段是这回发版的主因）：
+  - 安装代码块末尾多出的空行去掉；
+  - 「真假判定」那段把「可能误判」从括号里拿出来正着说，兼修「一边 → 一遍」；
+  - 「多个可能的 shell」标题与正文口径对齐（不再写死「两个目录」）；
+  - 计划任务那一栏「留空 = 不用计划任务」语义是反的，改成「留空 = 走 cscript，跟着 DSH 生灭；填了才脱离 DSH」；
+  - `npm run check:privacy` 那条命令原先悬空（解释隐私体检的段落被删了），补回一整段说明；
+  - 块引用里孤零零一行 `[IO.File]::WriteAllText(...)` 补上引导语；
+  - Shell 型自动生成脚本的路径写错（`~/Dsh/…`），改成实际落点 `~/.dsh/napcat-autogen-node.bat`；文件清单同时补上 `napcat-autogen.bat`；
+  - 配置表补齐 `hideConsole` / `qrFreshSec` / `heartbeatSec` / `maxQqPerChain` / `maxLogBytes`，并注明路径类字段默认落在 `~/.dsh/`。
+- **验证**：`npm run smoke:client` PASS、`selftest:scan` 15/15、`selftest:setup` 45 通过 0 失败、`npm run check`（清单 + 隐私）双绿。
+- 版本 2.6.0。
+
 ## 2.5.1 — README 按维护者口径重写（只有文档改动）
 - **为什么发这一版**：npm 上的 README 是发布那一刻的快照，改 GitHub 不会跟着变 —— 只有发一个新版本号，npm 页面才会重新抓。代码一行没动，纯为了把两个人看的那份对齐。
 - **README 改了什么**（作者手改，我照搬）：去掉「从本地目录装」那条只对开发者有意义的路径；分盘扫描的真假判定、多个 shell 并存这两段按实际重装经历改写；快速登录令牌失效时间改成实测的「几小时左右」；记住密码的风险清单删掉 MD5 那句；计划任务两处说明改成「留空 = 不建任务」的说法；开头补了一句吐槽。
@@ -14,7 +34,7 @@
   3. 系统 `PATH`（`where node`）；
   4. 常见安装目录（`Program Files\nodejs`、`%LOCALAPPDATA%\Programs\nodejs`）；
   5. NapCat 目录里自带的 `node.exe` 兜底。
-- **补上「Shell 型」NapCat**：目录**顶层**有 `napcat.mjs` 的（官方 NapCat.Shell 包那种），现在会用上面这份 node 生成 `~/Dsh/napcat-autogen-node.bat` 去跑 `node napcat.mjs`；以前只认 `NapCatWinBootMain.exe`，遇到 node 型安装直接报「找不到启动脚本」。注入版 `versions\*\resources\app\napcat\napcat.mjs` **不会**被当成入口（那份是等 QQ 注入的，普通 node 跑必崩）。
+- **补上「Shell 型」NapCat**：目录**顶层**有 `napcat.mjs` 的（官方 NapCat.Shell 包那种），现在会用上面这份 node 生成 `~/.dsh/napcat-autogen-node.bat` 去跑 `node napcat.mjs`；以前只认 `NapCatWinBootMain.exe`，遇到 node 型安装直接报「找不到启动脚本」。注入版 `versions\*\resources\app\napcat\napcat.mjs` **不会**被当成入口（那份是等 QQ 注入的，普通 node 跑必崩）。
 - **注入型（OneKey）不变**：NapCat 跑在 `QQ.exe --type=utility --utility-sub-type=node.mojom.NodeService` 里，磁盘上没有 node.exe，外部 node 替不了它 —— 这条链路插件只负责调 bootmain。
 - **可见性**：设置页新增「Node 运行时」一栏 + 「测一下 node」按钮；状态条显示「哪份 node / 什么版本 / 路径」；`napcat_status` 返回值里多了 `node` 字段；启动日志 `boot:` 那行带上 node 来源。
 - **发版前隐私清洗**：`lib/client.js` 的「接口没响应」提示原来硬编码了本机家目录，改成 `~/.dsh/napcat-keeper.log`；`scripts/selftest-scan.mjs` / `scripts/smoke-client.mjs` 里写死的本机绝对路径改成按脚本自身位置定位；`smoke-client` 的 `launchAccount` fixture 换成合成占位 `1000000000`。现在换台机器 clone 下来，自测脚本照样跑得起来。
