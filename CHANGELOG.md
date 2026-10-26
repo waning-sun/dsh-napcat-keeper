@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.0.2
+
+- `package.json` 补 `repository` / `homepage` / `bugs`，npm 页面能直接跳 GitHub 仓库。
+- 纯元数据变更，功能与 2.0.1 一致。
+
 ## 2.0.1 — 桌面不再多一个黑框
 
 - 简介改成：发现没有能够随着 dsh 打开自动启动 napcat 的插件，遂使用大肥鱼制作此插件，建议搭配 Yuuyuko-uu 的 dsh-qq-bridge 使用~；`author` 署名为「熙的大肥鱼」。
