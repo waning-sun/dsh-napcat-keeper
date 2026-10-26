@@ -1,6 +1,6 @@
 {
   "name": "dsh-napcat-keeper",
-  "version": "2.0.2",
+  "version": "2.1.0",
   "description": "发现没有能够随着dsh打开自动启动napcat的插件，遂使用大肥鱼制作此插件，建议搭配Yuuyuko-uu的dsh-qq-bridge使用~",
   "type": "module",
   "main": "lib/index.js",

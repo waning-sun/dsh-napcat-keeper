@@ -81,6 +81,22 @@ cscript / cmd 直接拉 NapCat，会多出一个控制台窗口挂在桌面上�
 不想要隐藏就把「拉起时不显示黑框」关掉，任务会退回直接跑 `cmd.exe`；已经跑起来的那条链想收窗口，
 点「收起黑框」（`action=hideConsole`）即可。
 
+## 记住密码：默认关，开了要自己认风险
+
+NapCat 的**快速登录令牌会失效**（实测几小时到几天），失效后启动脚本只会停在扫码，QQ 就一直离线，
+`dsh-qq-bridge` 那边则是刷屏的 `ECONNREFUSED 127.0.0.1:3000`。想让它自己能爬起来，就得给它密码。
+
+设置页「自动登录（可不填）」里勾 **记住密码** 时会先弹一段风险提示，要你自己点「我知道风险，仍然开启」才会生效。开启前请确认你接受这几条：
+
+1. 密码以**明文**存进 `~/.dsh/napcat-keeper-config.json` 和插件生成的 `napcat-keeper-env.bat`，不加密（MD5 那份是给 NapCat 兜底用的，等于同一个秘密）。
+2. 任何能读你用户目录的程序都能捡走：同步盘、备份工具、其它软件、远控、临时借电脑的人。
+3. QQ 密码往往和 QQ 邮箱、部分游戏、微信登录入口共用一套身份，泄漏面不止一个号。
+4. 插件不打印密码，`/state` 也只回「存没存 + 长度」，但那只是少开一个口子，不等于安全。
+5. 随时可以点「清除密码」收回，配置和 bat 里的密码会被删掉。
+
+密码不写成命令行参数（`NapCatWinBootMain.exe <号> <密码>` 那样会进进程列表和 Windows 事件日志），
+而是走环境变量 `NAPCAT_QUICK_PASSWORD` / `NAPCAT_QUICK_PASSWORD_MD5`，且只有本机 `127.0.0.1:3000` 回连时才注入。
+
 ## 计划任务为什么重要
 
 `napcat.bat` / `NapCatWinBootMain.exe` 拉起的进程链会跟着「拉起它的进程」一起死。
@@ -106,6 +122,8 @@ cscript / cmd 直接拉 NapCat，会多出一个控制台窗口挂在桌面上�
 | `launcherScript` | 自动探测 | 启动脚本名或绝对路径 |
 | `launchAccount` | 空 | 想快登的 QQ 号 |
 | `launchArgs` | 空 | 追加给启动脚本的参数 |
+| `rememberPassword` | `false` | 记住 QQ 密码、令牌失效时自动密码登录（**明文落盘，详见上节**） |
+| `quickPassword` | 空 | QQ 密码；只在保存时写入，接口不回显、日志不打印 |
 | `onebotPort` | `3000` | OneBot 11 HTTP 端口 |
 | `accessToken` | 空 | OneBot access token |
 | `taskName` | `NapCat-Keeper-Launch` | 负责拉起的计划任务名，留空 = 不用 |
@@ -125,6 +143,7 @@ cscript / cmd 直接拉 NapCat，会多出一个控制台窗口挂在桌面上�
 ~/.dsh/napcat-keeper.log           看门狗日志（超 1MB 自动滚动）
 ~/.dsh/napcat-keeper-launch.log    启动脚本的原始输出（扫码提示都在这）
 ~/.dsh/napcat-keeper-config.json   设置页保存的配置
+~/.dsh/napcat-keeper-env.bat       只在「记住密码」开启时生成：把密码塞进环境变量给启动脚本
 ~/.dsh/napcat-keeper-state.json    每轮 tick 的状态快照
 ~/.dsh/napcat-qr.png               最近一张二维码副本（扫码时会更新）
 ```
@@ -142,6 +161,13 @@ cscript / cmd 直接拉 NapCat，会多出一个控制台窗口挂在桌面上�
 
 **换端口了？**
 改「OneBot HTTP 端口」保存即可；如果同时换了 Shell 目录，跨进程锁会自动清掉。
+
+**老是掉线、每次都要扫码？**
+令牌过期了。要么每次手机扫，要么开「记住密码」让它自己用密码登（先看上上节的风险）。
+`napcat_status` 会直接告诉你现在是 `password` 还是 `token` 在撑、以及密码文件在不在。
+
+**密码改成带特殊字符的行不行？**
+行。`%` 会写成 `%%`（bat 里转义）、`"` 会被去掉，中文路径和中文密码也认。
 
 **能在 Linux / macOS 上用吗？**
 看门狗本身是 node 实现，但「进程路径探测 / 计划任务 / cscript」这几处是为 Windows 写的；其它平台目前只保证「探端口 + 判活」。

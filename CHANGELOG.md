@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.1.0 — 可选「记住密码」，并先把风险说清楚
+
+- 新增 **`rememberPassword` + `quickPassword`**：勾上后令牌失效时用密码自动登录（NapCat 读环境变量 `NAPCAT_QUICK_PASSWORD` / `NAPCAT_QUICK_PASSWORD_MD5`）。默认关。
+- 设置页勾选「记住密码」会先展开风险提示（明文落盘位置、谁能读走、为什么默认关、怎么收回），要点「我知道风险，仍然开启」才生效；入口是「自动登录（可不填）」那一组。
+- 密码**不进命令行**（避免出现在进程列表 / 事件日志），只写进 `~/.dsh/napcat-keeper-env.bat` 并由计划任务 wrapper 调它；`/state` 只回 `hasPassword` / `passwordLength` / `passwordPath` / `passwordActive`，日志与工具输出都不打印密码。
+- 新增动作 `action=clearPassword` + 页面按钮「清除已保存的密码」，删配置里的密码和那个 bat。
+- `napcat_status` 多一段 `自动登录`：`方式`（password / token）、`密码已存`、`生效中`、`密码文件`，并给出「令牌失效只剩扫码」的提示。
+- `saveAndApply`：`quickPassword` 传空 = 不改（不会被表单回显冲掉）。
+
 ## 2.0.2
 
 - `package.json` 补 `repository` / `homepage` / `bugs`，npm 页面能直接跳 GitHub 仓库。
