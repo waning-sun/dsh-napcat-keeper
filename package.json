@@ -1,6 +1,6 @@
 {
   "name": "dsh-napcat-keeper",
-  "version": "2.1.2",
+  "version": "2.5.0",
   "description": "发现没有能够随着dsh打开自动启动napcat的插件，遂使用大肥鱼制作此插件，建议搭配Yuuyuko-uu的dsh-qq-bridge使用~",
   "type": "module",
   "main": "lib/index.js",
@@ -11,11 +11,21 @@
   },
   "files": [
     "lib",
+    "scripts",
     "cordis.patch.yml",
     "README.md",
     "CHANGELOG.md",
     "LICENSE"
   ],
+  "scripts": {
+    "check": "node scripts/check-manifest.mjs && node scripts/check-privacy.mjs",
+    "check:manifest": "node scripts/check-manifest.mjs",
+    "check:privacy": "node scripts/check-privacy.mjs",
+    "check:fix": "node scripts/check-manifest.mjs --fix",
+    "smoke:client": "node scripts/smoke-client.mjs",
+    "selftest:scan": "node scripts/selftest-scan.mjs",
+    "selftest:setup": "node scripts/selftest-setup.mjs"
+  },
   "keywords": [
     "deepseek-harness",
     "dsh-plugin",

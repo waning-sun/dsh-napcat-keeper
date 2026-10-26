@@ -1,0 +1,197 @@
+// 一次性 smoke test：把 lib/client.js 塞进假 React 里渲染，确认没崩、盘数按钮跟 drives 走。
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+// 相对脚本自身定位：换台机器、换个 clone 目录都跑得起来
+const SRC = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'lib', 'client.js');
+const code = readFileSync(SRC, 'utf8');
+
+let states = [];
+let idx = 0;
+const React = {
+  createElement: (type, props, ...children) => ({ type, props: props || {}, children: children.flat(Infinity), __el: true }),
+  useState: (init) => {
+    const i = idx++;
+    if (!(i in states)) states[i] = typeof init === 'function' ? init() : init;
+    return [states[i], (v) => { states[i] = typeof v === 'function' ? v(states[i]) : v; }];
+  },
+  useEffect: () => {},
+  useLayoutEffect: () => {},
+  useMemo: (fn) => fn(),
+  useCallback: (fn) => fn,
+  useRef: (v) => ({ current: v }),
+};
+
+let factory = null;
+globalThis.window = { __ModuleLoader__: { load: (def) => { factory = def.factory; } } };
+globalThis.fetch = () => Promise.resolve({ json: () => Promise.resolve(null) });
+new Function('window', 'fetch', code)(globalThis.window, globalThis.fetch);
+
+const mod = factory((name) => {
+  if (name === 'react') return React;
+  throw new Error('unexpected require: ' + name);
+});
+
+let Section = null;
+mod.apply({ get: (k) => (k === 'slots' ? { inject: (n, fn) => fn(), register: (m, c) => { Section = c; return c; } } : undefined) });
+if (!Section) throw new Error('Section 没拿到');
+
+function render() { idx = 0; return Section({}); }
+function collect(tree) {
+  const buttons = [];
+  const boxes = [];
+  const texts = [];
+  (function walk(n) {
+    if (n === null || n === undefined || n === false) return;
+    if (typeof n === 'string' || typeof n === 'number') { texts.push(String(n)); return; }
+    if (Array.isArray(n)) { n.forEach(walk); return; }
+    if (n.__el) {
+      if (n.type === 'button') buttons.push(n.children.filter((c) => typeof c === 'string').join(''));
+      if (n.type === 'input' && n.props && n.props.type === 'checkbox') {
+        boxes.push({ name: String(n.props.name || ''), checked: Boolean(n.props.checked), disabled: Boolean(n.props.disabled) });
+      }
+      n.children.forEach(walk);
+    }
+  })(tree);
+  return { buttons, boxes, text: texts.join(' ') };
+}
+
+render(); // 第一次：态=null 的 loading 分支
+states[0] = {
+  ok: true,
+  version: '2.2.2',
+  config: {
+    configPath: 'C:/x/napcat-keeper-config.json', logPath: 'C:/x/napcat-keeper.log',
+    shellDir: 'C:/Users/x/NapCat/OneKey/NapCat.52230.Shell', launcherScript: 'napcat.quick2.bat',
+    launchAccount: '1000000000', launchArgs: '', onebotPort: 3000, accessToken: '',
+    taskName: 'NapCat-Keeper-Launch', rememberPassword: true, autoCreateTask: true,
+    probeIntervalSec: 45, launchGraceSec: 150, scanTimeoutSec: 300, maxScanRetries: 2,
+    stuckSec: 420, chainGapSec: 120, procPathMatch: '', bridgeStaleSec: 180, enabled: true,
+  },
+  runtime: {
+    online: true, nickname: 'n', userId: 1, phase: 'online', launchCount: 0, dedupeCount: 0,
+    scanRetries: 0, procs: { boot: 1, qq: 4, chains: 1, dup: false, known: true },
+    qr: { ageSec: 10 }, bridge: { ageSec: 0 }, procRoot: 'C:/p', launcherFound: 'C:/l.bat',
+    taskName: 'T', taskReady: true, error: '',
+  },
+  scan: { running: false, found: [], drives: ['C:'], visited: 0, elapsedMs: 0, limitHit: false, cancelled: false },
+  drives: ['C:', 'D:', 'E:'],
+  setup: {
+    dir: 'C:/Users/x/.dsh/napcat-keeper-setup',
+    cmdPath: 'C:/Users/x/.dsh/napcat-keeper-setup/apply-admin.cmd',
+    ps1Path: 'C:/Users/x/.dsh/napcat-keeper-setup/apply.ps1',
+    undoCmdPath: 'C:/Users/x/.dsh/napcat-keeper-setup/undo-admin.cmd',
+    exists: true,
+    needs: [
+      { id: 'launcher', label: '自动启动脚本', hint: '补一个 napcat.quick.auto.bat', ready: true, why: '', needAdmin: false },
+      { id: 'envbat', label: '中间层（密码）', hint: '写中间层 bat', ready: true, why: '', needAdmin: false },
+      { id: 'task', label: '计划任务', hint: '建计划任务', ready: true, why: '', needAdmin: false },
+      { id: 'firewall', label: '防火墙放行', hint: '放行 OneBot 端口', ready: false, why: '端口没填', needAdmin: true },
+    ],
+    plan: {
+      createdAt: '2026-10-27T00:12:00.000Z',
+      needAdmin: true,
+      steps: [{ id: 'a', label: '建计划任务' }, { id: 'b', label: '放行防火墙' }],
+    },
+    lastRun: {
+      mode: 'apply',
+      ok: false,
+      elevated: true,
+      results: [
+        { id: 'a', label: '建计划任务', ok: true, skipped: false, message: '好了' },
+        { id: 'b', label: '放行防火墙', ok: false, skipped: false, message: '没权限' },
+      ],
+    },
+  },
+  log: ['line1'],
+};
+
+let bad = 0;
+function check(name, ok, extra) {
+  console.log((ok ? 'PASS  ' : 'FAIL  ') + name + (ok || !extra ? '' : ' → ' + extra));
+  if (!ok) bad++;
+}
+
+const base = collect(render());
+check('没有「自动探测」', !base.text.includes('自动探测'));
+check('「重新探活」（不是重新探测）', base.buttons.includes('重新探活') && !base.buttons.includes('重新探测'));
+check('有「重新读盘」按钮', base.buttons.includes('重新读盘'));
+check('三块盘三个按钮', ['扫 C:', '扫 D:', '扫 E:'].every((b) => base.buttons.includes(b)));
+check('盘数提示 3 块', /读到 3 块盘：C:、D:、E:/.test(base.text));
+check('shellDir 指向分盘扫描', base.text.includes('不想手填就用上面「分盘扫描」'));
+
+// 盘数跟 drives 走：1 块 / 5 块 / 0 块
+for (const drives of [['C:'], ['C:', 'D:', 'E:', 'F:', 'G:'], []]) {
+  states[0].drives = drives;
+  const out = collect(render());
+  const scanBtns = out.buttons.filter((b) => b.startsWith('扫 '));
+  const ok = drives.length
+    ? scanBtns.length === drives.length && drives.every((d) => out.buttons.includes('扫 ' + d))
+    : scanBtns.length === 0 && out.text.includes('没读到盘');
+  check(`drives=${JSON.stringify(drives)} → ${scanBtns.length} 个「扫 X:」按钮`, ok, JSON.stringify(scanBtns));
+}
+
+// 扫的时候要能停
+states[0].drives = ['C:', 'D:', 'E:'];
+states[0].scan = { running: true, drive: 'D:', found: [{ path: 'D:/a', launcher: 'b.bat', boot: true }], visited: 1234, elapsedMs: 5000, limitHit: false, cancelled: false };
+const running = collect(render());
+check('扫描中显示「停止」', running.buttons.includes('停止'));
+check('扫描中显示进度', /已看 1234 个目录/.test(running.text));
+check('扫描中「重新读盘」被禁用位存在', (running.buttons.includes('重新读盘')));
+
+// 扫到的结果要分「真 Shell」和「壳模板」
+states[0].scan = {
+  running: false,
+  drive: 'C:',
+  visited: 9000,
+  elapsedMs: 1200,
+  limitHit: false,
+  cancelled: false,
+  found: [
+    { path: 'C:/u/NapCat/OneKey/NapCat.52230.Shell', name: 'NapCat.52230.Shell', launcher: 'napcat.quick2.bat', boot: true, shell: true, evidence: ['versions/', 'QQ.exe'], drive: 'C:' },
+    { path: 'C:/u/NapCat/OneKey/bootmain', name: 'bootmain', launcher: 'napcat.quick.bat', boot: true, shell: false, evidence: [], drive: 'C:' },
+  ],
+};
+const foundOut = collect(render());
+check('真 Shell 那条标 ✓', foundOut.text.includes('✓ 像真 Shell：versions/ · QQ.exe'));
+check('壳模板那条标 ⚠', foundOut.text.includes('多半是 OneKey 装完留下的壳模板'));
+check('真 Shell 按钮是「用这个」', foundOut.buttons.includes('用这个'));
+check('壳模板按钮是「仍要用这个」', foundOut.buttons.includes('仍要用这个'));
+
+// 服务端还是旧版（没 shell 字段）时不能把人误导成「壳模板」
+states[0].scan = { running: false, drive: 'E:', visited: 10, elapsedMs: 900, limitHit: false, cancelled: false, found: [{ path: 'E:/old/napcat', launcher: 'a.bat', boot: true }] };
+const legacyOut = collect(render());
+check('老后端不给判定时不误标壳模板', !legacyOut.text.includes('多半是 OneKey 装完留下的壳模板'));
+check('老后端时提示要重启 DSH', legacyOut.text.includes('重启 DSH'));
+
+// 提权脚本区
+states[0].scan = { running: false, found: [], drives: ['C:'], visited: 0, elapsedMs: 0, limitHit: false, cancelled: false };
+const setupOut = collect(render());
+check('有「生成脚本并打开文件夹」', setupOut.buttons.includes('生成脚本并打开文件夹'));
+check('有「打开文件夹」「读结果」', setupOut.buttons.includes('打开文件夹') && setupOut.buttons.includes('读结果'));
+const needBoxes = setupOut.boxes.filter((b) => b.name.startsWith('npk-need-'));
+check('4 条 need 就有 4 个勾选框', needBoxes.length === 4, String(needBoxes.length));
+check('做不了的那条禁用', needBoxes.filter((b) => b.disabled).length === 1);
+check('做不了的那条没被勾上', needBoxes.filter((b) => b.checked).length === 3);
+check('显示「先解决：」', setupOut.text.includes('先解决：端口没填'));
+check('显示上次生成 2 步', /上次生成：.*2 步/.test(setupOut.text));
+check('显示上次执行 1/2 步成', /执行：1\/2 步成/.test(setupOut.text));
+check('显示用了管理员', setupOut.text.includes('用了管理员'));
+check('失败项有 ✗', setupOut.text.includes('✗ 放行防火墙：没权限'));
+check('显示脚本目录', setupOut.text.includes('napcat-keeper-setup'));
+
+// 没生成过 / 还没跑过
+const keepSetup = states[0].setup;
+states[0].setup = { ...keepSetup, plan: null, lastRun: null };
+const emptyOut = collect(render());
+check('没生成过时提示', emptyOut.text.includes('还没生成过脚本'));
+states[0].setup = keepSetup;
+
+// 没有 setup 字段也不炸
+states[0].setup = undefined;
+const noSetup = collect(render());
+check('缺 setup 字段时降级提示', noSetup.text.includes('读不到脚本状态'));
+states[0].setup = keepSetup;
+
+process.exit(bad ? 1 : 0);
