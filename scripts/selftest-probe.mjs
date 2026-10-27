@@ -74,7 +74,12 @@ const connectAndHold = (port) => {
   }
 }
 
-const { probe, portClients, PROBE_MODES } = await loadInternals()
+const { probe: probeRaw, portClients, PROBE_MODES } = await loadInternals()
+/**
+ * 这个自检只看「端口本身」的行为，把「跟随 dsh-onebot-qq」钉死成关：
+ * 否则会去读本机真的 ~/.dsh，装了那个插件的人跑测试结果就不一样了。
+ */
+const probe = (cfg) => probeRaw(cfg, { companion: null })
 
 /* 1. 普通 NapCat HTTP 接口 ------------------------------------------------- */
 console.log('1) 端口上是正常的 OneBot HTTP 接口')

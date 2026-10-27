@@ -1,6 +1,6 @@
 {
   "name": "dsh-napcat-keeper",
-  "version": "2.8.0",
+  "version": "2.8.1",
   "description": "发现没有能够随着dsh打开自动启动napcat的插件，遂使用大肥鱼制作此插件，建议搭配Yuuyuko-uu的dsh-qq-bridge使用~",
   "type": "module",
   "main": "lib/index.js",
@@ -26,6 +26,7 @@
     "selftest:scan": "node scripts/selftest-scan.mjs",
     "selftest:save": "node scripts/selftest-save.mjs",
     "selftest:probe": "node scripts/selftest-probe.mjs",
+    "selftest:companion": "node scripts/selftest-companion.mjs",
     "selftest:setup": "node scripts/selftest-setup.mjs"
   },
   "keywords": [

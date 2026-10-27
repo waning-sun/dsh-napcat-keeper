@@ -1,5 +1,26 @@
 # Changelog
 
+## 2.8.1 — 认得出两个共存插件（dsh-onebot-qq 跟它的端口，dsh-qq-bridge 替它对端口）
+- 2.8.0 解决了「反向 WS 下不再误判离线、不再无限重启」，但端口还是得你自己抄：`dsh-onebot-qq` 默认监听 `8643`，你 `onebotPort` 里填的却是 `3000`，那就一直「没客户端连进来」。
+- 现在会读 `dsh-onebot-qq` 自己的配置：扫 `~/.dsh/profiles/*` 的 `package.json`（`dependencies` + `dsh.profile.bundles`）和 `cordis.patch.yml` / `cordis.yml` 里它那一段，得出「装没装 / 挂没挂 / 反向还是正向 / 监听哪个端口 / 有没有配令牌」。不认识 `!!js` 这类表达式，认不出的宁可当没配。
+- **跟随（`companionFollow`，默认开）**：你填的端口**不通**、而它确实挂着反向 WS 时，自动改看它那个端口 —— 状态条写「端口 N（跟随 dsh-onebot-qq）」，日志说明「你填的 X 上没有服务，已跟随 Y」。你自己填的端口一旦通了，它绝不插手。
+- 三种情况**不跟**，并在提示里说明为什么：它没挂进 profile（端口根本不会开）、它是正向模式（它自己去连 NapCat，不监听端口）、你把「跟随」关了。
+- 设置页多一行「共存插件」：`dsh-onebot-qq 0.9.6 · 已启用 · 反向 WS :8643 · 令牌一致`；没装就写「没检测到」；它配了令牌而你这边填得不一样，会标 ⚠ 不一致。
+- **新：把 `dsh-qq-bridge` 也认进来了**。它是「客户端」（拿 HTTP 去连 NapCat，再把消息接进 QQ），跟 `dsh-onebot-qq`（提供接口）正好相反，最容易崩的就是端口对不上。现在会读它的配置 —— 注意它**不在 profile 里**，摊在 `~/.dsh/qq-bridge-config.json`（中文键名 `NapCat` / `总开关` / `试运行` / `令牌` / `绑定`）。
+- 交叉检查五种结论写进设置页新的「桥接插件」行 + `napcat_status`：**装了但没挂进 profile**（只在 `dependencies` 里，桥接根本没跑）/ **连的是反向 WS 端口**（HTTP 客户端敲 WebSocket 端口，必然 426 或 401）/ **端口对不上**（桥接端口 ≠ 本插件看到的 OneBot 端口）/ **总开关关着**（在跑但一句不发）/ **试运行中**（只记账）。全对得上就什么都不说。
+- 这层检查只看配置，不碰桥接的进程、不改它的文件，纯提示。
+- 两个插件共用同一套 profile 扫描（`profileHits`）：挂载 = 在 `dsh.profile.bundles` 里，或 patch 里出现 `id: <bundle id>`；只装在 `dependencies` 而没进 bundles 的，一律判「装了但没挂」，不会假装它在生效。
+- `napcat_status` 的 `companion` 改成 `{ onebot: …, bridge: … }`（这个字段上一版才加、没发布，直接换结构，不留旧形状）。
+- `selftest:companion` 从 39 项扩到 **66 项**：新增桥接那一段 —— 地址抠端口、读中文配置、挂没挂、五种交叉检查各一条、未挂载优先于端口问题、以及 `probe` 会把检查结果一起带出来。`smoke-client` 加了 8 项桥接渲染断言（没装 / 装了在发 / 连错端口 / 总开关关着），共 52 项。
+- 探测仍然**只走 HTTP + 系统连接表，不做 WebSocket 握手**：它的反向 WS 是「后来者顶掉前人」的，拿真令牌握手会把 NapCat 自己那条挤掉。
+- **改：「跟随 dsh-onebot-qq」这一行不再是个摆设开关**。以前它在任何机器上都画出来、还默认勾着，可多数时候对面压根没挂进 profile，跟了也是白跟。现在它跟着探测结果走 —— 只有检测到 `dsh-onebot-qq` 装了、并且真挂进 profile（= 已启用）时才出现，且默认开；没装或只躺在 `dependencies` 里没挂载，这一行**整行不画**，`resolveConfig` 里值也直接按关算（`companionReady=false`），跟 `probe()` 里「没挂载就不跟」那条前提对齐。
+- 你显式关过一次就一直是关：`resolveConfig` 只在存储/cordis 里**没有**这个键时才套用动态默认值，不会因为你升级或重启又偷偷掰回开。
+- 配套挡住一个隐形的坑：设置页「保存」原本是把整份草稿全量发过去，界面上没画出来的项会带着旧值一起写进 `config.json`。现在只发真有变化的键，`saveAndApply` 那边也加了一道 —— 对面没启用时 `patch` 里就算带着 `companionFollow` 也不落盘，免得把用户以前的选择盖掉。
+- `selftest:companion` 66 → **83 项**（新增 17 项：`companionReady` 三种组合、没装 / 装了没挂 / 挂了 profile 三种场景下的 `companionReady` 与 `companionFollow`、可用时默认开、以及「存了 false / cordis 写 false 都保持关」；`companionPublic` 那份瘦身结果也认；再加 `uiState` 每轮校准的两组断言）；`smoke-client` 52 → **56 项**（没装不画这一行、挂了 profile 才画、没启用时不画、共存那行说明开关不会出现）。
+- 面板每轮都来问一次状态，`uiState` 顺手按**最新**探测结果校准这一项：你把 `dsh-onebot-qq` 中途挂进 profile（或者摘掉），那一行立刻跟着出现 / 消失，值也跟着变，不用重启 DSH 等 `apply` 重跑（探测本身有 20 秒缓存，最多慢这么久）。
+- `companionReady` 两种入参都吃：`detectCompanion()` 的完整结果（带 `found`）和 `companionPublic()` 的瘦身版（没有 `found`，只带 `version` / `profile` / `mounted`）—— 面板拿到的正是后面这种，早先只认 `found` 的话会一直判「不可用」。
+- 顺带清掉一处历史脏值：`config.json` 里那条由整包保存写进去的 `"companionFollow": "false"` 已删除（删前备份到 `legacy/config.before-cf-default-fix.json`），所以这台机器一旦启用 `dsh-onebot-qq`，这一行会按新默认值出现并勾上。
+
 ## 2.8.0 — 认得出反向 WebSocket（和 dsh-onebot-qq 共存）
 - **修的什么**：装了 `dsh-onebot-qq` 这类插件、把 NapCat 配成**反向 WebSocket** 连过来的机器上，本插件永远判「离线」，然后无限重启。原因是探测只用 HTTP 打 `get_login_info`，而反向 WS 的端口根本不吃 HTTP（换来 401 / 426）；老代码只看返回的 body、不看 HTTP 状态码，于是把「端口明明在回话」当成「端口不通」→ 卡死判定 → 杀掉重拉 → 循环。
 - 现在 `postOneBot` 会把 HTTP 状态码带回来，`probe()` 据此分清四种情况：能问到 `login_info`（普通 HTTP）、只收 WebSocket（反向 WS）、端口要求鉴权（多半是令牌不对）、端口没开。

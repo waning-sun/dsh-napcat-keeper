@@ -217,15 +217,50 @@ NapCat 连 OneBot 有两条相反的路：
 
 然后在 NapCat 那边把反向 WS 地址填成 `ws://127.0.0.1:<上面那个端口>`，令牌对上 `accessToken`。
 
+### 装了 dsh-onebot-qq 的，端口可以不用自己填
+
+从 2.8.x 起，本插件会去读 `dsh-onebot-qq` 自己的配置（profile 的 `package.json`、`cordis.patch.yml`/`cordis.yml` 里它那一段），知道它监听哪个端口、是反向还是正向、令牌配没配。于是：
+
+- 你填的 `onebotPort` **能通**，就永远用你的 —— 它不会插嘴；
+- 你填的端口**没人听**，而 `dsh-onebot-qq` 正开着反向 WS，就自动改看它那个端口（默认 `8643`），状态条会写「端口 N（跟随 dsh-onebot-qq）」，日志里也会说明「你填的 X 上没有服务，已跟随 Y」；
+- 它没挂进 profile（只在 `dependencies` 里、没进 `dsh.profile.bundles`、patch 里也没它）→ 端口根本不会开，这时**不跟**，因为跟了也没用；
+- 它是**正向**模式（它自己去连 NapCat，不监听端口）→ 也不跟，照常按你的端口 + `auto` 探；
+- 它配了 `accessToken` 但你这边填的不一样 → 设置页「共存插件」那行会标 ⚠ 令牌不一致。
+
+对照开关就是设置页那个「跟随 dsh-onebot-qq」（配置项 `companionFollow`）。它现在**跟着探测结果走**：只有检测到 `dsh-onebot-qq` 装了、并且真挂进 profile（= 已启用）时，这一行才会出现在设置页，且默认开；没装、或者只躺在 `dependencies` 里没挂载（那种情况端口根本不会开），这一行干脆不画，值也按关算 —— 免得上面那句「不跟」全靠猜。你要是自己关过，那就一直按关处理，不会因为它升级/重启又偷偷掰回开。设置页每轮刷新都会重算一遍，所以你中途把它挂上或者摘掉，那一行立刻跟着出现/消失，不用重启 DSH。
+
+> 跟着它看端口的前提是它真的在跑。只装在 `dependencies` 里的，设置页「共存插件」那行会写「已安装但没挂进 profile（「跟随」那个开关不会出现）」，先去 profile 里把它挂上再说。
+
+> 探测全程只用 HTTP + 系统连接表，**不做 WebSocket 握手**：`dsh-onebot-qq` 的反向 WS 是「后来者顶掉前人」的，拿真令牌去握手会把 NapCat 自己那条连接挤掉。
+
 真等不来客户端时，插件也不会每轮都杀进程：先按 `stuckSec`（默认 420 秒）等，超时才**温和重拉**一次，最多两次；还不行就进 `reverse-giveup`，把「该去 NapCat 里改反向 WS 地址」写进日志和状态条，不再折磨那条链。
 
 > 同一个端口没法既当 HTTP 接口又当反向 WS 服务 —— 谁先占着就听谁的。两样都想要，就给它们分两个端口。
+
+### 装了 dsh-qq-bridge 的，插件会替你把端口对一遍
+
+`dsh-onebot-qq` 提供的是**接口**（端口由它开，NapCat 连进去）；`dsh-qq-bridge` 是**客户端**（它反过来拿 HTTP/WS 去连 NapCat，再把消息接到 QQ 聊天里）。两者对端口的要求正好相反，最容易崩的地方就一句话：**桥接里填的 `NapCat` 地址，必须是 NapCat 自己开着的那个 OneBot 端口。**
+
+本插件会顺手读桥接的配置（`~/.dsh/qq-bridge-config.json`，它的配置不在 profile 里、摊在 `~/.dsh` 根上），然后拿自己看到的实际情况跟它比一比，结论写在设置页「桥接插件」那行：
+
+| 看到的情况 | 结论 |
+| --- | --- |
+| 只在 `dependencies` 里、没进 `dsh.profile.bundles` | **装了但没挂进 profile** —— 桥接根本没跑 |
+| 桥接指向的就是那个**反向 WS** 端口 | **连的是反向 WS 端口** —— 那里只收 WebSocket 握手，HTTP 客户端敲过去必然 426/401 |
+| 桥接端口 ≠ 本插件看到的 OneBot 端口 | **端口对不上** —— 消息发不出去 |
+| 桥接「总开关」是关的 | 在跑，但一句都不发 |
+| 桥接开着「试运行」 | 只记账，不真发到 QQ |
+| 以上都对得上 | 不吭声（对得上就没什么可说的） |
+
+这层检查只看**配置**，不碰桥接的进程、不改它的文件，纯提示。想让它真发消息，还是得去桥接自己的设置页把总开关打开、把地址填对。
+
+> 典型的踩坑组合：`dsh-onebot-qq` 开着反向 WS 占着 `8643`，桥接的 `NapCat` 又填成 `http://127.0.0.1:8643` —— 看着「端口明明通」，桥接就是一直不动。给 NapCat 另开一个 `httpServers` 端口（比如 `3000`）让桥接连，两边就都活了。
 
 ## 给 agent 用的三个工具
 
 | 工具 | 作用 |
 | --- | --- |
-| `napcat_status` | 端口/登录态、进程链、二维码副本路径、桥接心跳、日志尾部 |
+| `napcat_status` | 端口/登录态、进程链、二维码副本路径、桥接心跳、日志尾部，以及两个共存插件的状态（`dsh-onebot-qq` 装了没/挂了没/端口模式/令牌一致不，`dsh-qq-bridge` 装了没/挂了没/桥接端口对不对） |
 | `napcat_restart` | 干净地杀掉整条链并重拉，然后等它上线 |
 | `napcat_dedupe` | 只在真有重复链时才杀（没重复就什么都不做） |
 
@@ -244,6 +279,7 @@ NapCat 连 OneBot 有两条相反的路：
 | `onebotPort` | `3000` | OneBot 端口。普通部署填 NapCat 里 `httpServers` 的端口；反向 WebSocket 部署填**反向 WS 服务**监听的端口 |
 | `accessToken` | 空 | OneBot access token（跟 NapCat 或反向 WS 服务里填的一致） |
 | `probeMode` | `auto` | 在线探测方式：`auto` 先按 HTTP 问、问不通再看是不是反向 WS；`http` 只认 HTTP 接口；`reverse` 只认反向 WebSocket；`process` 只看进程不碰端口 |
+| `companionFollow` | `true` | 你填的端口不通时，是否跟随 `dsh-onebot-qq` 配的反向 WS 端口（详见「反向 WebSocket」那节）；你自己填的端口一通，它就绝不插手。**这一项只在检测到 `dsh-onebot-qq` 装了且挂进 profile 时才出现、才默认开**，否则设置页不显示、值按关算 |
 | `taskName` | 空（= 用 cscript，QQ 跟着 DSH 生灭） | 想脱离 DSH 才填计划任务名 |
 | `autoCreateTask` | `false` | 填了 `taskName` 且任务不存在时自动创建 |
 | `hideConsole` | `true` | 拉起时不显示黑框（用 wscript 壳藏窗口） |
@@ -304,7 +340,7 @@ npm run check:privacy              # 只查隐私（发版前必跑）
 
 **隐私体检**是发版前那道闸：把包里所有文本文件过一遍，找 Windows / Unix 家目录路径、邮箱、`ghp_` / `npm_` / `sk-` / `AKIA` 这类凭证、`Bearer` 后面的真串、DSH 会话 id，以及自测里那种 `launchAccount: '1234567890'` 的真实 QQ 号。命中就按 `文件:行` 列出来并返回非 0；确实是文档里必须留的示例，在那行末尾写 `check-privacy:ignore` 放过。占位写法（`C:/Users/你/…`、`C:/Users/x/…`）本来就放行。
 
-另外三个自测：`npm run smoke:client`（把 `lib/client.js` 塞进假 React 渲染一遍）、`npm run selftest:scan`（造假树验扫盘判定）、`npm run selftest:setup`（临时目录里真跑一遍 apply / 重跑 / undo）。都不依赖本机路径，clone 下来就能跑。
+另外几个自测，都不依赖本机路径，clone 下来就能跑：`npm run smoke:client`（把 `lib/client.js` 塞进假 React 渲染一遍）、`npm run selftest:scan`（造假树验扫盘判定）、`npm run selftest:save`（保存真的落到插件目录、误写的那份被认领回来）、`npm run selftest:probe`（本地起假服务器，验普通 HTTP / 反向 WS / 需要鉴权 / 端口没开四种判定）、`npm run selftest:companion`（造假 profile 与桥接配置，验 `dsh-onebot-qq` 的端口跟随和 `dsh-qq-bridge` 的交叉结论）、`npm run selftest:setup`（临时目录里真跑一遍 apply / 重跑 / undo）。
 
 > **改这个插件的文件的规矩**：别用 `Get-Content` 读、`Set-Content -Encoding utf8` 写 —— PowerShell 5.1 会按 ANSI 读、再按 UTF-8 写，一趟往返中文全变乱码，BOM 还照写。用编辑器另存为「UTF-8 无 BOM」；非要脚本写，就走
 > `[IO.File]::WriteAllText($path, $text, (New-Object System.Text.UTF8Encoding($false)))`。
@@ -367,13 +403,13 @@ DSH 自带的 pnpm 不捎带 git，Windows 上又默认没装，于是就卡在�
 | 填进去的 | 结果 |
 | --- | --- |
 | `dsh-napcat-keeper` | ✅ |
-| `dsh-napcat-keeper@2.8.0` | ✅（指定版本） |
+| `dsh-napcat-keeper@2.8.1` | ✅（指定版本） |
 | `dsh plugin --profile desktop add dsh-napcat-keeper` | ❌ 整条命令 |
 | `add dsh-napcat-keeper` | ❌ 多了 `add` |
 | `Dsh-napcat-keeper` | ❌ 大写 |
 | `dsh-napcat-keeper。`、`dsh-napcat-keeper；` | ❌ 全角标点 |
 
-改法就一句：**那一栏只填 `dsh-napcat-keeper`**（要指定版本就 `dsh-napcat-keeper@2.8.0`）。想跑命令行的话，得在终端里跑，
+改法就一句：**那一栏只填 `dsh-napcat-keeper`**（要指定版本就 `dsh-napcat-keeper@2.8.1`）。想跑命令行的话，得在终端里跑，
 不是在输入框里跑。
 
 ## License

@@ -147,6 +147,74 @@ delete states[0].runtime.clients;
 const auth = collect(render());
 check('401 时显示「端口要求鉴权」', auth.text.includes('端口要求鉴权'));
 
+// 和 dsh-onebot-qq 共存：没装时说没检测到；装了要说清版本 / 挂没挂 / 端口 / 令牌
+states[0].runtime.mode = 'reverse';
+states[0].runtime.online = true;
+states[0].runtime.portStatus = 426;
+const noComp = collect(render());
+check('没装共存插件时也有「共存插件」那行', noComp.text.includes('共存插件'));
+check('没装时写「没检测到 dsh-onebot-qq」', noComp.text.includes('没检测到 dsh-onebot-qq'));
+check('没装时设置页不画「跟随 dsh-onebot-qq」这一行', !noComp.text.includes('只在 dsh-onebot-qq 装了'));
+states[0].runtime.companion = { version: '0.9.6', profile: 'desktop', mounted: true, mode: 'reverse', host: '127.0.0.1', port: 8643, url: 'ws://127.0.0.1:3001', tokenKnown: true };
+states[0].runtime.companionReady = true;
+states[0].runtime.companionTokenMatch = false;
+states[0].runtime.portUsed = 8643;
+states[0].runtime.followed = true;
+const comp = collect(render());
+check('装了会说版本与「已启用」', comp.text.includes('dsh-onebot-qq 0.9.6') && comp.text.includes('已启用'));
+check('反向模式写出监听端口', /反向 WS :8643/.test(comp.text));
+check('令牌不一致要标出来', comp.text.includes('令牌不一致'));
+check('跟随了就说跟到了哪个端口', comp.text.includes('端口 8643') && comp.text.includes('跟随 dsh-onebot-qq'));
+check('装了且启用时才画「跟随 dsh-onebot-qq」这一行', comp.text.includes('只在 dsh-onebot-qq 装了'));
+states[0].runtime.companion.mounted = false;
+states[0].runtime.companionReady = false;
+states[0].runtime.companionTokenMatch = null;
+states[0].runtime.followed = false;
+const notMounted = collect(render());
+check('没挂进 profile 时说清楚（免得以为在生效）', notMounted.text.includes('已安装但没挂进 profile'));
+check('没启用时那一行也不画', !notMounted.text.includes('只在 dsh-onebot-qq 装了'));
+check('共存那行顺带说明「跟随」开关不会出现', notMounted.text.includes('「跟随」那个开关不会出现'));
+delete states[0].runtime.companion;
+delete states[0].runtime.companionReady;
+delete states[0].runtime.companionTokenMatch;
+
+// 和 dsh-qq-bridge 共存：它是「客户端」，要能看出装没装、挂没挂、连的端口对不对
+const noBridge = collect(render());
+check('没装桥接时也有「桥接插件」那行', noBridge.text.includes('桥接插件'));
+check('没装时写「没检测到 dsh-qq-bridge」', noBridge.text.includes('没检测到 dsh-qq-bridge'));
+states[0].runtime.bridgePlugin = {
+  version: '1.0.7',
+  profile: 'desktop',
+  mounted: true,
+  enabled: true,
+  dryRun: false,
+  napcatUrl: 'http://127.0.0.1:8643',
+  napcatPort: 8643,
+  tokenKnown: false,
+  bindings: 0,
+  configKnown: true,
+  check: 'bridge-hits-reverse',
+  note: 'dsh-qq-bridge 连的是 http://127.0.0.1:8643，而那个端口现在是反向 WebSocket',
+};
+const withBridge = collect(render());
+check('装了会说版本与状态', withBridge.text.includes('dsh-qq-bridge 1.0.7') && withBridge.text.includes('已启用'));
+check('在发 / 试运行 要分得清', withBridge.text.includes('在发'));
+check('连的是反向 WS 端口要标出来', withBridge.text.includes('连的是反向 WS 端口'));
+check('提示文案单独一行给出来', withBridge.text.includes('桥接提示：') && withBridge.text.includes('反向 WebSocket'));
+states[0].runtime.bridgePlugin = {
+  ...states[0].runtime.bridgePlugin,
+  mounted: false,
+  enabled: false,
+  dryRun: true,
+  check: 'not-mounted',
+  note: '',
+};
+const bridgeOff = collect(render());
+check('没挂进 profile 时说清楚', bridgeOff.text.includes('已安装但没挂进 profile'));
+check('总开关关着要说出来', bridgeOff.text.includes('总开关关着'));
+
+delete states[0].runtime.bridgePlugin;
+
 // 盘数跟 drives 走：1 块 / 5 块 / 0 块
 for (const drives of [['C:'], ['C:', 'D:', 'E:', 'F:', 'G:'], []]) {
   states[0].drives = drives;
