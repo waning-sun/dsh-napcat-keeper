@@ -41,6 +41,7 @@ function render() { idx = 0; return Section({}); }
 function collect(tree) {
   const buttons = [];
   const boxes = [];
+  const selects = [];
   const texts = [];
   (function walk(n) {
     if (n === null || n === undefined || n === false) return;
@@ -51,10 +52,16 @@ function collect(tree) {
       if (n.type === 'input' && n.props && n.props.type === 'checkbox') {
         boxes.push({ name: String(n.props.name || ''), checked: Boolean(n.props.checked), disabled: Boolean(n.props.disabled) });
       }
+      if (n.type === 'select') {
+        selects.push({
+          value: String(n.props && n.props.value),
+          options: n.children.filter((c) => c && c.__el && c.type === 'option').map((o) => String(o.props.value)),
+        });
+      }
       n.children.forEach(walk);
     }
   })(tree);
-  return { buttons, boxes, text: texts.join(' ') };
+  return { buttons, boxes, selects, text: texts.join(' ') };
 }
 
 render(); // 第一次：态=null 的 loading 分支
@@ -120,6 +127,25 @@ check('有「重新读盘」按钮', base.buttons.includes('重新读盘'));
 check('三块盘三个按钮', ['扫 C:', '扫 D:', '扫 E:'].every((b) => base.buttons.includes(b)));
 check('盘数提示 3 块', /读到 3 块盘：C:、D:、E:/.test(base.text));
 check('shellDir 指向分盘扫描', base.text.includes('不想手填就用上面「分盘扫描」'));
+
+// 反向 WebSocket：下拉得在、默认 auto、四项齐；runtime 报反向态时状态条得换词
+const modeSel = base.selects[0];
+check('有「在线探测方式」下拉，默认 auto', Boolean(modeSel) && modeSel.value === 'auto', JSON.stringify(modeSel));
+check('下拉四项齐全', Boolean(modeSel) && ['auto', 'http', 'reverse', 'process'].every((v) => modeSel.options.includes(v)),
+  JSON.stringify(modeSel && modeSel.options));
+states[0].runtime.mode = 'reverse';
+states[0].runtime.portStatus = 426;
+states[0].runtime.clients = 2;
+const rev = collect(render());
+check('反向 WS 时状态条说「反向 WS 已连接」', rev.text.includes('反向 WS 已连接'));
+check('反向 WS 时显示客户端数', /客户端 2/.test(rev.text));
+check('反向 WS 时显示探测方式与 HTTP 状态', rev.text.includes('反向 WebSocket') && rev.text.includes('HTTP 426'));
+states[0].runtime.mode = 'auth';
+states[0].runtime.online = false;
+states[0].runtime.portStatus = 401;
+delete states[0].runtime.clients;
+const auth = collect(render());
+check('401 时显示「端口要求鉴权」', auth.text.includes('端口要求鉴权'));
 
 // 盘数跟 drives 走：1 块 / 5 块 / 0 块
 for (const drives of [['C:'], ['C:', 'D:', 'E:', 'F:', 'G:'], []]) {

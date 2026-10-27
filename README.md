@@ -193,6 +193,34 @@ QQ 那条进程链挂在本 DSH 实例下面——DSH 开着它就在，DSH 关�
 
 > 顺带一提：`versions\*\resources\app\napcat\napcat.mjs` 那份**不会**被当成入口——它是等 QQ 注入用的，拿普通 Node 直接跑必崩。
 
+## 反向 WebSocket：和 dsh-onebot-qq 共存
+
+NapCat 连 OneBot 有两条相反的路：
+
+- **正向（HTTP / 正向 WS）**：NapCat 自己开端口（`httpServers`），外面去问它 —— 本插件默认就是这么看它的；
+- **反向 WebSocket**：端口由**别人**开着（比如 `dsh-onebot-qq` 插件起的反向 WS 服务，或者你自己写的服务），**NapCat 反过来连进去**。
+
+第二条路上没有 HTTP 接口可问：拿 HTTP 去敲那个端口，换来的是 `401` / `426`。2.7.3 及更早的版本只看返回内容、不看 HTTP 状态码，于是把「端口明明在回话」当成「端口不通」→ 判卡死 → 杀掉重拉 → 无限循环。现在不会了：
+
+| 探测到的情况 | 插件怎么判 | 会不会重启 |
+| --- | --- | --- |
+| 能问到 `get_login_info` | 在线（普通 HTTP） | 不会 |
+| 端口回 `426`（只收 WebSocket） | **反向 WS 模式** | 不重启；等 NapCat 连进来 |
+| 端口回 `401` | 需鉴权（多半是令牌不对） | 不重启，提示你去对 `accessToken` |
+| 端口开着、也有客户端连进来 | 在线（反向 WS） | 不会 |
+| 端口连不上、进程也不在 | 离线 | 拉起（带退避） |
+
+配置上只要两步：
+
+1. 把 `onebotPort` 填成**反向 WS 服务监听的端口**（不是 NapCat 里那个 `httpServers` 的端口——反向模式下 NapCat 根本不监听）；
+2. 「在线探测方式」留 `auto` 就行；想明确指定就选 `反向 WebSocket`。
+
+然后在 NapCat 那边把反向 WS 地址填成 `ws://127.0.0.1:<上面那个端口>`，令牌对上 `accessToken`。
+
+真等不来客户端时，插件也不会每轮都杀进程：先按 `stuckSec`（默认 420 秒）等，超时才**温和重拉**一次，最多两次；还不行就进 `reverse-giveup`，把「该去 NapCat 里改反向 WS 地址」写进日志和状态条，不再折磨那条链。
+
+> 同一个端口没法既当 HTTP 接口又当反向 WS 服务 —— 谁先占着就听谁的。两样都想要，就给它们分两个端口。
+
 ## 给 agent 用的三个工具
 
 | 工具 | 作用 |
@@ -213,8 +241,9 @@ QQ 那条进程链挂在本 DSH 实例下面——DSH 开着它就在，DSH 关�
 | `nodePath` | 空（自动） | 指定 `node.exe`；留空按「DSH 自带 → 系统 PATH → 常见安装目录 → NapCat 目录」找，见上一节 |
 | `rememberPassword` | `false` | 记住 QQ 密码、令牌失效时自动密码登录（**明文落盘，详见上节**） |
 | `quickPassword` | 空 | QQ 密码；只在保存时写入，接口不回显、日志不打印 |
-| `onebotPort` | `3000` | OneBot 11 HTTP 端口 |
-| `accessToken` | 空 | OneBot access token |
+| `onebotPort` | `3000` | OneBot 端口。普通部署填 NapCat 里 `httpServers` 的端口；反向 WebSocket 部署填**反向 WS 服务**监听的端口 |
+| `accessToken` | 空 | OneBot access token（跟 NapCat 或反向 WS 服务里填的一致） |
+| `probeMode` | `auto` | 在线探测方式：`auto` 先按 HTTP 问、问不通再看是不是反向 WS；`http` 只认 HTTP 接口；`reverse` 只认反向 WebSocket；`process` 只看进程不碰端口 |
 | `taskName` | 空（= 用 cscript，QQ 跟着 DSH 生灭） | 想脱离 DSH 才填计划任务名 |
 | `autoCreateTask` | `false` | 填了 `taskName` 且任务不存在时自动创建 |
 | `hideConsole` | `true` | 拉起时不显示黑框（用 wscript 壳藏窗口） |
@@ -295,6 +324,14 @@ npm run check:privacy              # 只查隐私（发版前必跑）
 **换端口了？**
 改「OneBot HTTP 端口」保存即可；如果同时换了 Shell 目录，跨进程锁会自动清掉。
 
+**用着 dsh-onebot-qq（反向 WebSocket），插件永远显示离线、进程反复重启？**
+2.7.3 及更早的版本只会用 HTTP 去问 `get_login_info`，而反向 WS 的端口不吃 HTTP（回 `401` / `426`），
+于是被当成「端口不通」→ 判卡死 → 杀掉重拉，一轮一轮地折腾。
+现在的版本认这条路：端口回 426 就判成**反向 WS 模式**，改成看「端口上有没有客户端连进来」，
+进程在 + 端口有服务时**不再杀**。设置上只要把「OneBot HTTP 端口」改成反向 WS 服务监听的端口，
+「在线探测方式」留 `auto`（或直接选「反向 WebSocket」），细节见前面「反向 WebSocket：和 dsh-onebot-qq 共存」那节。
+状态条里会显示 `探测：反向 WebSocket · 客户端 N`，卡住时给的提示也是「去 NapCat 里把反向 WS 地址填成 `ws://127.0.0.1:<端口>`」。
+
 **老是掉线、每次都要扫码？**
 令牌过期了。要么每次手机扫，要么开「记住密码」让它自己用密码登（先看上上节的风险）。
 `napcat_status` 会直接告诉你现在是 `password` 还是 `token` 在撑、以及密码文件在不在。
@@ -330,13 +367,13 @@ DSH 自带的 pnpm 不捎带 git，Windows 上又默认没装，于是就卡在�
 | 填进去的 | 结果 |
 | --- | --- |
 | `dsh-napcat-keeper` | ✅ |
-| `dsh-napcat-keeper@2.7.3` | ✅（指定版本） |
+| `dsh-napcat-keeper@2.8.0` | ✅（指定版本） |
 | `dsh plugin --profile desktop add dsh-napcat-keeper` | ❌ 整条命令 |
 | `add dsh-napcat-keeper` | ❌ 多了 `add` |
 | `Dsh-napcat-keeper` | ❌ 大写 |
 | `dsh-napcat-keeper。`、`dsh-napcat-keeper；` | ❌ 全角标点 |
 
-改法就一句：**那一栏只填 `dsh-napcat-keeper`**（要指定版本就 `dsh-napcat-keeper@2.7.3`）。想跑命令行的话，得在终端里跑，
+改法就一句：**那一栏只填 `dsh-napcat-keeper`**（要指定版本就 `dsh-napcat-keeper@2.8.0`）。想跑命令行的话，得在终端里跑，
 不是在输入框里跑。
 
 ## License
