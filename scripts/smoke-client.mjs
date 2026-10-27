@@ -288,4 +288,25 @@ const noSetup = collect(render());
 check('缺 setup 字段时降级提示', noSetup.text.includes('读不到脚本状态'));
 states[0].setup = keepSetup;
 
+// 「进程」那行：按安装形态换词（boot 恒 0 不代表没进程）
+const keepRuntime = states[0].runtime;
+const 进程行 = (runtimePatch) => {
+  states[0].runtime = { ...keepRuntime, ...runtimePatch };
+  return collect(render()).text;
+};
+const nodeText = 进程行({ layout: 'node', procs: { boot: 0, qq: 2, chains: 1, dup: false, known: true } });
+check('node 型写「主/工作进程 2（node）」而不是 NapCatWinBootMain 0', nodeText.includes('主/工作进程 2（node）'), nodeText.slice(0, 80));
+check('node 型不再出现「NapCatWinBootMain 0」这种说法', !nodeText.includes('NapCatWinBootMain 0'), nodeText.slice(0, 80));
+const bootText = 进程行({ layout: 'boot', procs: { boot: 1, qq: 4, chains: 1, dup: false, known: true } });
+check('boot 型写「快登壳 1 ｜ QQ 4」', bootText.includes('快登壳 1 ｜ QQ 4 ｜ 链 1'), bootText.slice(0, 80));
+const legacyText = 进程行({ layout: undefined, procs: { boot: 0, qq: 2, chains: 1, dup: false, known: true } });
+check('老服务端没给 layout → 退回原来三项', legacyText.includes('NapCatWinBootMain 0 ｜ QQ 2 ｜ 链 1'), legacyText.slice(0, 80));
+const lyingText = 进程行({ layout: 'boot', procs: { boot: 0, qq: 2, chains: 1, dup: false, known: true } });
+check('服务端还说是 boot、可壳是 0 个 → 按实际在跑的 node 说', lyingText.includes('主/工作进程 2（node）'), lyingText.slice(0, 80));
+const unknownText = 进程行({ layout: 'node', procs: { boot: 0, qq: 0, chains: 0, dup: false, known: false } });
+check('还没探测时说「（还没探测）」', unknownText.includes('（还没探测）'), unknownText.slice(0, 80));
+const dupText = 进程行({ layout: 'node', procs: { boot: 0, qq: 2, chains: 2, dup: true, known: true } });
+check('有重复链要标出来', dupText.includes('⚠ 有重复链'), dupText.slice(0, 80));
+states[0].runtime = keepRuntime;
+
 process.exit(bad ? 1 : 0);

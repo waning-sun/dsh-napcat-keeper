@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.8.2 — 「进程」那行按安装形态说人话 + 清一处重复模板
+- **修**：`进程　NapCatWinBootMain 0 ｜ QQ 2 ｜ 链 1` 这句在 node 型（无头 Shell）安装上等于在骗人 —— 那种装法里 QQ 本体跑在 `node.exe` 里，机器上既没有 `QQ.exe` 也没有快登壳，`procs.boot` 恒为 0。现在设置页按形态换词：node 型写 `主/工作进程 2（node） ｜ 链 1`，boot 型写 `快登壳 1 ｜ QQ 4 ｜ 链 1`，老服务端没给 `layout` 时退回原来那三项。
+- 新增 `procsLayout()`，判形态的顺序是「**先看谁在跑**（`boot>0` → boot 型，`qq>0` → node 型），都没在跑才看 Shell 目录」。目录那步只认**顶层** `node.exe` + `index.js`/`napcat.mjs` 或顶层 `NapCatWinBootMain.exe`，不再拿「目录里某处有这个 exe」当判据 —— OneKey 那套会把壳模板留在 `napcat/` 子目录里，node 型目录里也常带一份。
+- 目录判形按目录名缓存 60 秒：面板轻量档 1.5 秒来问一次，不该每次都去 `readdir`。
+- 「进程」那行加了悬浮解释（`title`），写清楚 0 不等于没进程；前端另外挡一道 —— 服务端还说 boot、可壳是 0 个而 node 进程 > 0 时，仍按 node 说，省得等 host 侧热重载。
+- **清**：`taskCommandLine` 与 `taskCommandLinePure` 原先各自抄了一遍 `cmd.exe /c chcp 65001 … call … >> log` 的模板，现在共用 `taskCmdLineOf()`，两边不会再改一处漏一处（一条会落盘中间层 bat、一条不落盘的区别照旧）。
+- `procsLayout(cfg, p)` 补上 `cfg` 为空时的兜底，不再 `Cannot read properties of null`。
+- 测试：新增 `selftest:layout`（18 项：三种形态、进程优先于目录、只有子目录模板时仍判 unknown、目录不存在 / shellDir 未填 / cfg 为 null 不抛、60 秒缓存、任务命令行两条路一字不差）；`smoke-client` 加 7 项「进程」行渲染断言（含「服务端还说是 boot 但壳是 0 个」那条）；新增 `npm test` 一把跑完清单体检 + 隐私体检 + 全部自测。
+
 ## 2.8.1 — 认得出两个共存插件（dsh-onebot-qq 跟它的端口，dsh-qq-bridge 替它对端口）
 - 2.8.0 解决了「反向 WS 下不再误判离线、不再无限重启」，但端口还是得你自己抄：`dsh-onebot-qq` 默认监听 `8643`，你 `onebotPort` 里填的却是 `3000`，那就一直「没客户端连进来」。
 - 现在会读 `dsh-onebot-qq` 自己的配置：扫 `~/.dsh/profiles/*` 的 `package.json`（`dependencies` + `dsh.profile.bundles`）和 `cordis.patch.yml` / `cordis.yml` 里它那一段，得出「装没装 / 挂没挂 / 反向还是正向 / 监听哪个端口 / 有没有配令牌」。不认识 `!!js` 这类表达式，认不出的宁可当没配。

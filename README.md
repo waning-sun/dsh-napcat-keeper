@@ -340,7 +340,7 @@ npm run check:privacy              # 只查隐私（发版前必跑）
 
 **隐私体检**是发版前那道闸：把包里所有文本文件过一遍，找 Windows / Unix 家目录路径、邮箱、`ghp_` / `npm_` / `sk-` / `AKIA` 这类凭证、`Bearer` 后面的真串、DSH 会话 id，以及自测里那种 `launchAccount: '1234567890'` 的真实 QQ 号。命中就按 `文件:行` 列出来并返回非 0；确实是文档里必须留的示例，在那行末尾写 `check-privacy:ignore` 放过。占位写法（`C:/Users/你/…`、`C:/Users/x/…`）本来就放行。
 
-另外几个自测，都不依赖本机路径，clone 下来就能跑：`npm run smoke:client`（把 `lib/client.js` 塞进假 React 渲染一遍）、`npm run selftest:scan`（造假树验扫盘判定）、`npm run selftest:save`（保存真的落到插件目录、误写的那份被认领回来）、`npm run selftest:probe`（本地起假服务器，验普通 HTTP / 反向 WS / 需要鉴权 / 端口没开四种判定）、`npm run selftest:companion`（造假 profile 与桥接配置，验 `dsh-onebot-qq` 的端口跟随和 `dsh-qq-bridge` 的交叉结论）、`npm run selftest:setup`（临时目录里真跑一遍 apply / 重跑 / undo）。
+另外几个自测，都不依赖本机路径，clone 下来就能跑：`npm run smoke:client`（把 `lib/client.js` 塞进假 React 渲染一遍）、`npm run selftest:scan`（造假树验扫盘判定）、`npm run selftest:save`（保存真的落到插件目录、误写的那份被认领回来）、`npm run selftest:probe`（本地起假服务器，验普通 HTTP / 反向 WS / 需要鉴权 / 端口没开四种判定）、`npm run selftest:companion`（造假 profile 与桥接配置，验 `dsh-onebot-qq` 的端口跟随和 `dsh-qq-bridge` 的交叉结论）、`npm run selftest:setup`（临时目录里真跑一遍 apply / 重跑 / undo）、`npm run selftest:layout`（验「进程」那行按安装形态换词、目录判形的 60 秒缓存，以及任务命令行两条路是否同一套模板）。懒得一个个点就 `npm test`：清单体检 + 隐私体检 + 上面全部自测，一串跑完，红的就停。
 
 > **改这个插件的文件的规矩**：别用 `Get-Content` 读、`Set-Content -Encoding utf8` 写 —— PowerShell 5.1 会按 ANSI 读、再按 UTF-8 写，一趟往返中文全变乱码，BOM 还照写。用编辑器另存为「UTF-8 无 BOM」；非要脚本写，就走
 > `[IO.File]::WriteAllText($path, $text, (New-Object System.Text.UTF8Encoding($false)))`。
@@ -349,6 +349,18 @@ npm run check:privacy              # 只查隐私（发版前必跑）
 
 **「离线」但进程明明还在？**
 端口没通。看 `~/.dsh/dsh-napcat-keeper/launch.log`，多半是卡在扫码，或者 QQ 弹了验证窗。
+
+**设置页「进程」那行写着 `快登壳 0`，是不是一个进程都没有？**
+不是。那行按你的安装形态换词，鼠标停上去有解释：
+
+| 形态 | 面板怎么写 | 意思 |
+| --- | --- | --- |
+| node 型（无头 Shell，目录顶层是 `node.exe` + `index.js` / `napcat.mjs`） | `主/工作进程 2（node） ｜ 链 1` | QQ 本体跑在 node 进程里，机器上**没有** `QQ.exe`、也没有快登壳 |
+| 注入 / 快登壳型（目录顶层有 `NapCatWinBootMain.exe`） | `快登壳 1 ｜ QQ 4 ｜ 链 1` | 快登壳进程数 + QQ 进程数 |
+
+所以 node 型安装下快登壳恒为 0 是正常的，不等于没进程 —— 真进程数看「主/工作进程」后面那个数字。
+判形态的顺序是：**先看谁在跑**（有快登壳进程算 boot 型，只有 node 进程算 node 型），
+都没在跑才去看目录（这一步按目录名缓存 60 秒，不会每 1.5 秒去 `readdir` 一次）。
 
 **刚关掉 DSH，QQ 就跟着退了？**
 正常，默认就是这样：QQ 挂在 DSH 下面，DSH 一走它就走。下次开 DSH 会重新拉一条。
@@ -403,13 +415,13 @@ DSH 自带的 pnpm 不捎带 git，Windows 上又默认没装，于是就卡在�
 | 填进去的 | 结果 |
 | --- | --- |
 | `dsh-napcat-keeper` | ✅ |
-| `dsh-napcat-keeper@2.8.1` | ✅（指定版本） |
+| `dsh-napcat-keeper@2.8.2` | ✅（指定版本） |
 | `dsh plugin --profile desktop add dsh-napcat-keeper` | ❌ 整条命令 |
 | `add dsh-napcat-keeper` | ❌ 多了 `add` |
 | `Dsh-napcat-keeper` | ❌ 大写 |
 | `dsh-napcat-keeper。`、`dsh-napcat-keeper；` | ❌ 全角标点 |
 
-改法就一句：**那一栏只填 `dsh-napcat-keeper`**（要指定版本就 `dsh-napcat-keeper@2.8.1`）。想跑命令行的话，得在终端里跑，
+改法就一句：**那一栏只填 `dsh-napcat-keeper`**（要指定版本就 `dsh-napcat-keeper@2.8.2`）。想跑命令行的话，得在终端里跑，
 不是在输入框里跑。
 
 ## License
