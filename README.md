@@ -40,9 +40,25 @@
 
 ## 安装
 
+**桌面版（点界面的）**：设置 → 插件 → **添加插件**，「包名或地址」那一栏只填包名 ——
+
+```
+dsh-napcat-keeper
+```
+
+> 只填包名，**别把整条命令粘进去**：那一栏是按「包名 / 仓库地址 / 本地目录」解析的，
+> 多一个空格、多一个 `add`、多一个大写字母，就会报 `无法识别这个包名或地址：not a package name the registry accepts`。
+> 顺带一提，桌面版装完之后 DSH 目录里并没有 `dsh` 命令，所以下面那条命令行不是人人都能跑 —— 用不了就走上面这条路。
+
+**命令行**：
+
 ```bash
 dsh plugin --profile <profile> add dsh-napcat-keeper
 ```
+
+> **别加 `github:` 前缀。** 写成 `add github:waning-sun/dsh-napcat-keeper` 走的是 git 通道，pnpm 会去调外部 `git ls-remote`；
+> 机器上没装 Git（或者 Git 不在 PATH 里）就当场报 `'git' is not recognized as an internal or external command`。
+> 上面这条是 npm 名安装，全程不碰 git。真踩到了看「常见问题」里 `'git' is not recognized` 那条。
 
 装完重启一次 DSH（第一次装载才生效），然后去 **设置 → napcat桥**。
 
@@ -292,6 +308,36 @@ npm run check:privacy              # 只查隐私（发版前必跑）
 **设置页点开一片空白，连别的插件设置也不见了？**
 2.2.1 之前是 `settings.section` 钩子签名对不上新版 DSH（抛 `Cannot add property N, object is not extensible`），异常冒到设置面板层，整个面板一起白。升级后重开 DSH 即可。
 另外设置页会轮询 `/state`，2.2.1 起热路径有 300 秒进程快照缓存，不再每次都新起 PowerShell；如果你自己写脚本调这个接口，加 `?light=1` 只读缓存、不扫描进程。
+
+**装的时候报 `'git' is not recognized as an internal or external command`？**
+不是插件的问题。那句是 pnpm 在解析 **git 规格的依赖**（`github:owner/repo`、`git+https://…`）时调的外部 `git`；
+DSH 自带的 pnpm 不捎带 git，Windows 上又默认没装，于是就卡在「拉代码」这一步，插件一个字节都还没下载。
+包里的 `lib/` 本来就是入库的、没有构建步骤，所以跟「源码要编译」也没关系。三条路，越靠前越省事：
+
+1. **用 npm 名装** —— 就是上面「安装」那节那条命令，全程不碰 git。
+2. **装 Git**：`winget install --id Git.Git -e`，或者从 [git-scm.com](https://git-scm.com/download/win) 下安装包。
+   装完 **必须彻底退出 DSH 再重开**：pnpm 是 DSH 的子进程，继承的是 DSH 启动那一刻的 PATH，
+   不重启会继续报一模一样的错（很多人以为白装了）。重开后在新的终端里 `git --version` 有输出，再去装插件。
+3. **不装 git、又非要从 GitHub 拉**：改用源码 tarball，pnpm 走 HTTPS 下载、不调 git ——
+   `dsh plugin --profile <profile> add https://codeload.github.com/waning-sun/dsh-napcat-keeper/tar.gz/refs/heads/main`
+   仓库目前没打 tag，所以只能指 `refs/heads/main`；缺点是版本号只能读包里的 `package.json`，也不跟着发版更新。
+
+**装的时候报 `无法识别这个包名或地址：not a package name the registry accepts`？**
+这句是 DSH 在**解析你填的那串字**，还没到下载那一步 —— 跟插件、跟网络都没关系。它是「设置 → 插件 → 添加插件」
+那个输入框的校验：那一栏认三种东西，**npm 包名**（`dsh-napcat-keeper`、`@作者/名字`）、**仓库地址**（`https://github.com/…`）、
+**本地目录**。包名只允许小写字母、数字和 `. _ ~ -`，所以下面这些写法一律被拒：
+
+| 填进去的 | 结果 |
+| --- | --- |
+| `dsh-napcat-keeper` | ✅ |
+| `dsh-napcat-keeper@2.7.3` | ✅（指定版本） |
+| `dsh plugin --profile desktop add dsh-napcat-keeper` | ❌ 整条命令 |
+| `add dsh-napcat-keeper` | ❌ 多了 `add` |
+| `Dsh-napcat-keeper` | ❌ 大写 |
+| `dsh-napcat-keeper。`、`dsh-napcat-keeper；` | ❌ 全角标点 |
+
+改法就一句：**那一栏只填 `dsh-napcat-keeper`**（要指定版本就 `dsh-napcat-keeper@2.7.3`）。想跑命令行的话，得在终端里跑，
+不是在输入框里跑。
 
 ## License
 
