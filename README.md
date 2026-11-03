@@ -1,13 +1,13 @@
 # dsh-napcat-keeper
 
-发现没有能够随着 DSH 打开自动启动 NapCat 的插件，遂使用大肥鱼制作此插件，建议搭配[Yuuyuko-uu 的 dsh-qq-bridge](https://github.com/Yuuyuko-uu/dsh-qq-bridge)使用~
+发现没有能够随着 DSH 打开自动启动 NapCat 的插件，遂使用大肥鱼制作此插件，建议搭配[Yuuyuko-uu 的 dsh-qq-link](https://github.com/Yuuyuko-uu/dsh-qq-link)使用~
 
 给 [NapCat](https://napneko.github.io/)（QQ 协议端）配一个看门狗：**DSH 在，QQ 就在**。
 
 端口不通就拉起来，进程重复就杀掉多余的，卡在扫码就重来，扫完码以后又掉线也会自己恢复。
 所有需要人填的东西都在 **DSH → 设置 → napcat桥** 一个页面里，保存即生效，不用重启。
 
-> 常配套 `dsh-qq-bridge`（把 QQ 和 DSH 会话接通）：那个负责「说话」，这个负责「别掉线」。
+> 常配套 `dsh-qq-link`（把 QQ 和 DSH 会话接通）：那个负责「说话」，这个负责「别掉线」。
 > 也可以单独用——只要你想让 NapCat 一直活着。
 
 
@@ -32,27 +32,28 @@
 
 ## 前置：先把 NapCat 装好
 
-1. 装 [NapCat.Shell](https://github.com/NapNeko/NapCatQQ/releases)（Windows 有一键安装包，会顺带装 QQ）。
-2. 打开 NapCat 的 WebUI → **网络配置** → 加一个 **HTTP 服务器**：
-   - host `127.0.0.1`，port `3000`（或你喜欢的端口）
-   - 需要的话设一个 token，记下来
-3. 手动跑一次、扫码登录一次（之后有登录缓存就不用再扫，缓存时限在几十分钟左右吧）。
+装 [NapCat.Shell](https://github.com/NapNeko/NapCatQQ/releases)（Windows 有一键安装包，会顺带装 QQ）。
 
-> 要扫码的时候不用再去翻 NapCat 的 `cache\qrcode.png`：插件自己起了个只监听本机的小页面
+> 装完napcat之后不用自己配置，后面插件会一件懒人配置的
+> 等正式允许要QQ扫码的时候不用再去翻 NapCat 的 `cache\qrcode.png`：插件自己起了个只监听本机的小页面
 > （默认 **http://127.0.0.1:8899/**），设置页顶上那条黄横幅 / 二维码那一行的「打开扫码页」
 > 点进去就是一张会自己刷新的码，扫完它自己变绿。换端口见下面配置表 `qrPanelPort`。
 
 ## 安装
 
-**桌面版（点界面的）**：设置 → 插件 → **添加插件**，「包名或地址」那一栏只填包名 ——
+**DSH桌面版**：设置 → 插件 → **添加插件**，「包名或地址」那一栏只填包名 ——
 
 ```
 dsh-napcat-keeper
 ```
+或者填
+```
+github:waning-sun/dsh-napcat-keeper
+```
 
 > 只填包名，**别把整条命令粘进去**：那一栏是按「包名 / 仓库地址 / 本地目录」解析的，
 > 多一个空格、多一个 `add`、多一个大写字母，就会报 `无法识别这个包名或地址：not a package name the registry accepts`。
-> 顺带一提，桌面版装完之后 DSH 目录里并没有 `dsh` 命令，所以下面那条命令行不是人人都能跑 —— 用不了就走上面这条路。
+> 顺带一提，桌面版刚装完之后 DSH 目录里并没有 `dsh` 命令，所以下面那条命令行不是人人都能跑 —— 用不了就走上面这条路。
 
 **命令行**：
 
@@ -60,27 +61,24 @@ dsh-napcat-keeper
 dsh plugin --profile <profile> add dsh-napcat-keeper
 ```
 
-> **别加 `github:` 前缀。** 写成 `add github:waning-sun/dsh-napcat-keeper` 走的是 git 通道，pnpm 会去调外部 `git ls-remote`；
-> 机器上没装 Git（或者 Git 不在 PATH 里）就当场报 `'git' is not recognized as an internal or external command`。
-> 上面这条是 npm 名安装，全程不碰 git。真踩到了看「常见问题」里 `'git' is not recognized` 那条。
-
 装完重启一次 DSH（第一次装载才生效），然后去 **设置 → napcat桥**。
 
 ## 首次配置：其实就三个空
 
 | 填什么 | 说明 |
 | --- | --- |
-| **NapCat Shell 目录** | 用下面的「分盘扫描」找：NapCat 装哪块盘就点哪块，扫到后点「用这个」直接填进去；也能手填，例如 `C:/Users/你/NapCat/OneKey/NapCat.Shell` |
+| **NapCat Shell 目录** | 用「分盘扫描」找：NapCat 装哪块盘就点哪块，不知道装在哪里了就用扫全部盘(慢)，扫到后点「用这个」直接填进去；也能手填，例如 `C:/Users/你/NapCat/OneKey/NapCat.Shell` |
 | **要快登的 QQ 号** | 填了它，插件优先挑「填的这个号」的启动脚本；连脚本都没有时，自动生成一个直接调 `NapCatWinBootMain.exe <号>` 的脚本 |
 | **OneBot HTTP 端口** | 跟 NapCat 网络配置里的 httpServers 一致（默认 3000） |
 
 点 **保存设置** → 存到 `~/.dsh/dsh-napcat-keeper/config.json`，立刻热生效。
 回「状态」看：在线会显示昵称和 QQ 号；离线就点「拉起 NapCat」。
 
+---
+
 ## 分盘扫描：装在哪都能找到
 
-从 2.2.2 起插件**不再自己猜** NapCat 装在哪：`shellDir` 留空就是空，不会悄悄填一个可能填错的目录。
-设置页第一组是 **分盘扫描**，目录由你来选：
+从 2.2.2 起插件**不再自己猜** NapCat 装在哪，设置页第一组是 **分盘扫描**，目录由你来选：
 
 - 本机有几块盘就列几个按钮（盘符取自系统 `DriveInfo`，光驱、移动盘、上锁的卷都会列），点哪个扫哪个；
   有「全部盘（慢）」；扫的时候可以点「停止」；插了新盘点「重新读盘」，不用重启 DSH。
@@ -90,8 +88,8 @@ dsh plugin --profile <profile> add dsh-napcat-keeper
   命中后不再往它下面钻（QQ 目录里几千个文件，钻进去只会变慢）。
 - **命中之后再分真假**：目录里只要有 `versions/`、`QQ.exe`、`napcat.mjs` 里的任意一样，就是**真 Shell**
   （标绿 `✓ 像真 Shell：versions/ · QQ.exe`，按钮「用这个」）；三样都没有的标黄
-  `⚠ 没看到 versions/QQ.exe/napcat.mjs`，按钮是「仍要用这个」。
-  这个判据只是经验值，精简版布局有可能三样都不带（我自己重装了一遍 NapCat 就没这仨，不管了 bro），
+  `⚠ 没看到 versions/QQ.exe/napcat.mjs 时`，按钮是「仍要用这个」。
+  这个判据只是经验，精简版布局有可能三样都不带（我自己重装了一遍 NapCat 就没这仨，不管了 bro），
   所以「标黄」不等于「不能用」，点「仍要用这个」照样能填进去。
   真 Shell 一律排在前面，不受磁盘遍历顺序影响。
 - **为什么会有好几个候选**：OneKey 安装器会先把壳模板解到 `NapCat\OneKey\bootmain`（只有 `NapCatWinBootMain.exe`
@@ -116,17 +114,9 @@ dsh plugin --profile <profile> add dsh-napcat-keeper
 | 收起黑框 | 把已经在跑的控制台窗口藏起来（不用重启 QQ） |
 | 全部杀掉 | 只杀，不拉 |
 
-## 端口放行（只有这一步要管理员）
+## 端口放行
 
-插件自己全程普通权限，不做任何提权，也不再生成「让你去双击」的脚本（2.9.1 删掉了那套机制）。
-唯一真正需要管理员的事是给 OneBot 端口开防火墙入站 —— 要放行时，自己开一个管理员 PowerShell 跑一次：
-
-```powershell
-New-NetFirewallRule -DisplayName "dsh-napcat-keeper OneBot" -Direction Inbound `
-  -Protocol TCP -LocalPort 3000 -Action Allow
-```
-
-不放行也能用：NapCat 和 DSH 都在本机，走 127.0.0.1 不需要防火墙规则；只有从别的机器连进来才需要。
+（2.9.1 删掉了这套机制）插件自己全程普通权限，不做任何提权。
 
 ## 桌面上那个黑框
 
@@ -147,8 +137,8 @@ NapCat 的**快速登录令牌会失效**（实测几小时左右），失效后
 1. 密码以**明文**存进 `~/.dsh/dsh-napcat-keeper/config.json` 和同目录下插件生成的 `env.bat`，不加密。
 2. 任何能读你用户目录的程序都能捡走：同步盘、备份工具、其它软件、远控、临时借电脑的人。
 3. QQ 密码往往和 QQ 邮箱、部分游戏、微信登录入口共用一套身份，泄漏面不止一个号。
-4. 插件不打印密码，`/state` 也只回「存没存 + 长度」，但那只是少开一个口子，不等于安全。
-5. 随时可以点「清除密码」收回，配置和 bat 里的密码会被删掉。
+4. 插件不打印密码，`/state` 也只回「存没存 + 长度」，但那只是少了一个直接查看的口子，不等于安全。
+5. 随时可以点「清除密码」，配置和 bat 里的密码会被删掉。
 
 密码不写成命令行参数（`NapCatWinBootMain.exe <号> <密码>` 那样会进进程列表和 Windows 事件日志），
 而是走环境变量 `NAPCAT_QUICK_PASSWORD` / `NAPCAT_QUICK_PASSWORD_MD5`，且只有本机 `127.0.0.1:3000` 回连时才注入。
@@ -160,7 +150,7 @@ QQ 那条进程链挂在本 DSH 实例下面——DSH 开着它就在，DSH 关�
 
 「刚重启 DSH，QQ 就掉了」不是毛病，是这个默认行为：新实例会自己重新拉起，扫不上就自动密码登录。
 
-要是反过来想要「DSH 关了 QQ 还活着」，才去填「计划任务名」那一栏（比如 `NapCat-Keeper-Launch`；**留空 = 走 cscript，跟着 DSH 生灭**）+ 勾「自动创建计划任务」，
+要是想要「DSH 关了 QQ 还活着」，才去填「计划任务名」那一栏（比如 `NapCat-Keeper-Launch`；**留空 = 走 cscript，跟着 DSH 生灭**）+ 勾「自动创建计划任务」，
 那时插件改用 `schtasks /run` 拉，父进程是任务计划服务，DSH 重启牵连不到它。
 
 ## 用哪份 Node：默认借 DSH 自带的
@@ -226,9 +216,9 @@ NapCat 连 OneBot 有两条相反的路：
 
 > 同一个端口没法既当 HTTP 接口又当反向 WS 服务 —— 谁先占着就听谁的。两样都想要，就给它们分两个端口。
 
-### 装了 dsh-qq-bridge 的，插件会替你把端口对一遍
+### 装了 dsh-qq-link 的，插件会替你把端口对一遍
 
-`dsh-onebot-qq` 提供的是**接口**（端口由它开，NapCat 连进去）；`dsh-qq-bridge` 是**客户端**（它反过来拿 HTTP/WS 去连 NapCat，再把消息接到 QQ 聊天里）。两者对端口的要求正好相反，最容易崩的地方就一句话：**桥接里填的 `NapCat` 地址，必须是 NapCat 自己开着的那个 OneBot 端口。**
+`dsh-onebot-qq` 提供的是**接口**（端口由它开，NapCat 连进去）；`dsh-qq-link` 是**客户端**（它反过来拿 HTTP 去连 NapCat，再把消息接到 QQ 聊天里）。两者对端口的要求正好相反。
 
 本插件会顺手读桥接的配置（`~/.dsh/qq-bridge-config.json`，它的配置不在 profile 里、摊在 `~/.dsh` 根上），然后拿自己看到的实际情况跟它比一比，结论写在设置页「桥接插件」那行：
 
@@ -309,11 +299,11 @@ NapCat 连 OneBot 有两条相反的路：
 ```
 
 - 2.9.1 起目录里不再有 `setup/`（那套「生成 apply-admin.cmd 让你双击」的提权交接机制已整块删除，
-  旧版本留下的 `setup/` 目录是死文件，可以手动删掉）。
+  旧版本留下的 `setup/` 目录是死文件，可以删掉）。
 
 - `env.bat` 只在「记住密码」开启时才有；两份 `autogen*.bat` 只在需要时出现（每次拉起前按当前配置重写，删掉也会自己长回来）。整个目录删掉 = 插件回到没配置过的状态。
 - **从老版本升上来（< 2.7.0）**：第一次启动会自动把原来散在 `~/.dsh` 根上的文件搬进这个目录（`napcat-keeper-config.json` → `config.json` 这种），改名一次就固定；计划任务里写死的旧路径也会一并改指新位置 —— 那一步用 `schtasks /change` 就地改，不结束正在跑的 QQ。老备份、以及搬不动的老文件（目标位已经有同名的那份、或者正被别的进程占着）都归到 `legacy/`，`~/.dsh` 根上不会留东西；实在被占着搬不动的，下次启动再搬一次。
-- `~/.dsh/qq-bridge-state.json` **不在**这个目录里，也不归这个插件：它由 `dsh-qq-bridge` 写，插件只是读一下它的时间戳，判断那边轮询还活着没有。
+- `~/.dsh/qq-bridge-state.json` **不在**这个目录里，也不归这个插件：它由 `dsh-qq-link` 写，插件只是读一下它的时间戳，判断那边轮询还活着没有。
 
 ## 出事了先跑体检：`npm run check`
 
@@ -340,7 +330,7 @@ npm run check:privacy              # 只查隐私（发版前必跑）
 ## 常见问题
 
 **「离线」但进程明明还在？**
-端口没通。看 `~/.dsh/dsh-napcat-keeper/launch.log`，多半是卡在扫码，或者 QQ 弹了验证窗。
+端口没通。看 `~/.dsh/dsh-napcat-keeper/launch.log`，多半是卡在扫码，或者 QQ 弹了验证窗，需要你手动登录那个 QQ 查看情况，到底是需要扫码，还是风险验证。
 
 **设置页「进程」那行写着 `快登壳 0`，是不是一个进程都没有？**
 不是。那行按你的安装形态换词，鼠标停上去有解释：
@@ -356,7 +346,7 @@ npm run check:privacy              # 只查隐私（发版前必跑）
 
 **刚关掉 DSH，QQ 就跟着退了？**
 正常，默认就是这样：QQ 挂在 DSH 下面，DSH 一走它就走。下次开 DSH 会重新拉一条。
-想反过来（DSH 关了 NapCat 还活着）去填「计划任务名」+ 勾「自动创建计划任务」。
+想反过来（DSH 关了 NapCat 还活着）去填「计划任务名」(随便写，就是个名字)+ 勾「自动创建计划任务」。
 
 **两个 QQ 客户端互相踢？**
 去重会兜住，但根因通常是有人又点了一次 `napcat.bat`。点「去重复链」立刻收敛。
