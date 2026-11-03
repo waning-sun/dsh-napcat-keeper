@@ -1,5 +1,30 @@
 # Changelog
 
+## 2.9.1 — 删掉「提权交接」那套生成脚本的机制（它做的事插件本来就能自己做）
+
+- **删**：设置页里「需要你点一下的脚本（免管理员提权）」整块没了 —— 连带 `makeSetup` / `openSetup` / `setupResult` 三个动作、`SETUP_NEEDS`、`buildSetupSteps`、`writeSetupBundle`、`readSetupResult`、`readSetupPlan`、`setupState`、`openSetupFolder`、`setupPaths`、`dirWritable`、`needCatalog`、`applyPs1Source`、`setupCmdSource`、`setupUndoCmdSource`、`setupReadmeText`、`launcherBatLines`，以及面板里的「提权区」和它那排勾选框。服务端 `uiState().setup` 字段一并去掉；服务端旧版还带着 `setup` 时面板也不炸。
+- **为什么**：那套机制把四件活写成 `plan.json` + `apply.ps1` + `apply-admin.cmd` 让人去双击，可这四件活插件自己全都能直接做完，而且**一件都不需要管理员**：
+  - 补启动脚本 → `autogen.bat` / `autogen-node.bat` 本来就写在插件自己目录里；
+  - 写 `env.bat` 中间层 → `writeEnvBat()` 在拉起和建任务时都会写；
+  - 建计划任务 → `ensureTask()` 走 `schtasks /create`，用户级，不需要管理员；
+  - 防火墙放行是唯一真要管理员的一步，也一并去掉（README「端口放行」给了 netsh 一行，要放行时自己跑一次；本机 127.0.0.1 连通根本不需要它）。
+  留着它只会让人以为「不点那几下插件就干不了活」，还多出一份把密码 base64 进 `plan.json` 的泄漏面。
+- **删**：`scripts/selftest-setup.mjs` 跟着机制一起走，`npm test` 链条同步去掉。
+- **清**：`migrateLegacyFiles()` 里等 `LEGACY_DIRS` 的改名搬家循环删了（没有需要改名的目录了），只留归档兜底；旧版本留下的 `~/.dsh/dsh-napcat-keeper/setup/` 是死文件，手动删掉即可。
+- 版本号：`lib/index.js` 的 `version` 与 `package.json` 同步到 2.9.1（`check:manifest` 会查这一项）。
+- 测试：`smoke-client` 里原来断言「有生成脚本按钮 / 4 个勾选框 / 读结果」的那 12 项，换成 5 项反向断言（不再是那套 UI、不再有 `npk-need-*` 勾选框、旧状态带 `setup` 字段也不炸）；其余脚本全绿（清单体检、隐私体检、smoke 65 项、scan 15、save 12、probe 27、companion 83、layout 18、qrpanel 45）。
+
+## 2.9.0 — 扫码页内嵌进插件：要扫码的时候点一下就能看见码
+- **新**：NapCat 卡在扫码时，插件自己起一个**只监听 `127.0.0.1`** 的小页面（默认 `http://127.0.0.1:8899/`），点开就是一张会自己刷新的二维码 —— 深色卡片、3 秒对一次状态、图片 2 秒换一次（带 cache-buster），扫完它自己变绿；码快过期时盖一层「马上换码」的遮罩。上面还写清当前阶段、登录的号、OneBot 端口通不通、最近几行启动日志。
+- 页面上两个按钮：「我要新码（重拉 NapCat）」直接走 `restart`、「立即刷新」只拉状态，不用回去翻设置页。
+- **为什么要单独开端口**：DSH 自己的 `webServer` 对外部浏览器一律 `403 Browser access is disabled`，把页面只挂在 `/dsh-napcat-keeper/qr` 下面，别人拿浏览器点开是打不开的。所以两条路都留着 —— `qrPanel.url`（独立小端口，谁都能开）优先，`qrPanel.path`（DSH 路由）当兜底，设置页和 `napcat_status` 给的都是可用的那个。
+- 设置页顶上新加一条黄色横幅：「⚠ NapCat 要手机扫码登录」+「点开扫码页」，点了直接开小端口那页；「二维码」那一行也多了「打开扫码页」按钮和当前端口状态。判定「要扫码」的口径：离线 + 阶段是 `need-scan`/`need-scan-giveup`，或者最近 900 秒内出过码。
+- 新配置两项：`qrPanelEnabled`（默认开）、`qrPanelPort`（默认 `8899`，夹在 1024–65535）。改了立刻生效，不用重启 DSH；换端口时旧 server 会先关掉，不会两个端口都在听。
+- 端口被别的程序占着时不闷头报错，`qrPanelPublic().note` 直接写「端口 N 被占了（改一个 qrPanelPort，或关掉占它的程序）」，设置页那行也照写。
+- 服务状态挂在 `globalThis[Symbol.for('dsh.napcat-keeper.qrpanel')]` 上：插件热重载时会把旧 server 关掉，不会越攒越多；`stop()` 里也顺手关（`ctx.on('dispose')` 走到那儿）。
+- 页面里的资源全走相对路径，所以在 `/` 下和在 `/dsh-napcat-keeper/qr` 下都能用；`serveQrPage()` 先把 `ROUTE` 前缀剥掉再分发，两个入口共用同一份处理。
+- 测试：新增 `selftest:qrpanel`（33 项：默认值/夹紧、起服务与真实 `127.0.0.1` 握手、`/` 出 HTML 且用相对路径、`/qr-state` 结构、`/qr.png` 只会 404 或 `image/png`、未知路径 404、带 ROUTE 前缀也出页面、端口被占的人话提示、关掉开关后端口真的释放、换端口后旧端口释放、`qrPageState` 带 `panel`）；已挂进 `npm test`。
+
 ## 2.8.2 — 「进程」那行按安装形态说人话 + 清一处重复模板
 - **修**：`进程　NapCatWinBootMain 0 ｜ QQ 2 ｜ 链 1` 这句在 node 型（无头 Shell）安装上等于在骗人 —— 那种装法里 QQ 本体跑在 `node.exe` 里，机器上既没有 `QQ.exe` 也没有快登壳，`procs.boot` 恒为 0。现在设置页按形态换词：node 型写 `主/工作进程 2（node） ｜ 链 1`，boot 型写 `快登壳 1 ｜ QQ 4 ｜ 链 1`，老服务端没给 `layout` 时退回原来那三项。
 - 新增 `procsLayout()`，判形态的顺序是「**先看谁在跑**（`boot>0` → boot 型，`qq>0` → node 型），都没在跑才看 Shell 目录」。目录那步只认**顶层** `node.exe` + `index.js`/`napcat.mjs` 或顶层 `NapCatWinBootMain.exe`，不再拿「目录里某处有这个 exe」当判据 —— OneKey 那套会把壳模板留在 `napcat/` 子目录里，node 型目录里也常带一份。

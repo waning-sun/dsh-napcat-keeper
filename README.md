@@ -38,6 +38,10 @@
    - 需要的话设一个 token，记下来
 3. 手动跑一次、扫码登录一次（之后有登录缓存就不用再扫，缓存时限在几十分钟左右吧）。
 
+> 要扫码的时候不用再去翻 NapCat 的 `cache\qrcode.png`：插件自己起了个只监听本机的小页面
+> （默认 **http://127.0.0.1:8899/**），设置页顶上那条黄横幅 / 二维码那一行的「打开扫码页」
+> 点进去就是一张会自己刷新的码，扫完它自己变绿。换端口见下面配置表 `qrPanelPort`。
+
 ## 安装
 
 **桌面版（点界面的）**：设置 → 插件 → **添加插件**，「包名或地址」那一栏只填包名 ——
@@ -111,33 +115,18 @@ dsh plugin --profile <profile> add dsh-napcat-keeper
 | 建计划任务 | 现在就把计划任务建好（用户级，不需要管理员） |
 | 收起黑框 | 把已经在跑的控制台窗口藏起来（不用重启 QQ） |
 | 全部杀掉 | 只杀，不拉 |
-| 生成脚本并打开文件夹 | 把勾好的「需要你点一下的脚本」写成 `apply.ps1` + 双击入口，同时弹资源管理器选中它 |
-| 打开文件夹 | 只打开那个目录（脚本已经生成过时用，不用重新生成一遍） |
-| 读结果 | 读回 `result.json`：上次跑成没成、哪一步失败、用没用上管理员 |
 
-## 要动系统的部分：交给你点一下的脚本
+## 端口放行（只有这一步要管理员）
 
-DSH 自己是普通权限。插件要碰「装系统的位置」（往防火墙加规则、往别人的目录里写启动脚本……）时，
-它不去偷偷提权，也不要你「以管理员身份重启 DSH」，而是把要做的事**写成一份脚本交给你**：
+插件自己全程普通权限，不做任何提权，也不再生成「让你去双击」的脚本（2.9.1 删掉了那套机制）。
+唯一真正需要管理员的事是给 OneBot 端口开防火墙入站 —— 要放行时，自己开一个管理员 PowerShell 跑一次：
 
-1. 设置页「需要你点一下的脚本」里勾上要做的事 → 点 **生成脚本并打开文件夹**；
-2. 资源管理器会跳出来并选中 `apply-admin.cmd`，双击它；
-3. 里面若含管理员步骤，会弹一次 UAC —— **那个「是」就是你自己按的确认键**；一条都不含就直接跑完，不弹任何窗；
-4. 回面板点 **读结果**，逐条显示成没成、为什么没成；
-5. 想全撤，双击同目录的 `undo-admin.cmd`。
+```powershell
+New-NetFirewallRule -DisplayName "dsh-napcat-keeper OneBot" -Direction Inbound `
+  -Protocol TCP -LocalPort 3000 -Action Allow
+```
 
-可勾的四件事：
-
-| 事 | 会做什么 | 要不要管理员 |
-| --- | --- | --- |
-| 自动启动脚本 | 在 `shellDir` 里补一个 `napcat.quick.auto.bat`（写死账号和 `NapCatWinBootMain.exe` 路径） | 看那个目录你能不能写，不能写才需要 |
-| 中间层 | 写 `env.bat`：把密码塞进环境变量再 call 启动脚本 | 不需要 |
-| 计划任务 | 用 `schtasks` 建用户级任务（要不要隐藏黑框跟着设置走） | 不需要 |
-| 防火墙放行 | `New-NetFirewallRule` 放行 OneBot 端口入站 | 需要 |
-
-`plan.json` 里存着这次要做的每一步（要写的文件内容以 base64 存 —— **开了「记住密码」时这里面就是那份密码**，
-别把这个目录发出去、别丢进同步盘）；`result.json` 是上次跑的结果，`run.log` 是脚本自己记的流水账。
-不用管理员就能做完的批次，`apply.ps1` 一条 `admin: true` 都数不到，于是原地跑完、绝不弹 UAC。
+不放行也能用：NapCat 和 DSH 都在本机，走 127.0.0.1 不需要防火墙规则；只有从别的机器连进来才需要。
 
 ## 桌面上那个黑框
 
@@ -260,7 +249,7 @@ NapCat 连 OneBot 有两条相反的路：
 
 | 工具 | 作用 |
 | --- | --- |
-| `napcat_status` | 端口/登录态、进程链、二维码副本路径、桥接心跳、日志尾部，以及两个共存插件的状态（`dsh-onebot-qq` 装了没/挂了没/端口模式/令牌一致不，`dsh-qq-bridge` 装了没/挂了没/桥接端口对不对） |
+| `napcat_status` | 端口/登录态、进程链、二维码副本路径、**扫码页地址（`qrPanel.url`，要扫码时发给用户点开）**、桥接心跳、日志尾部，以及两个共存插件的状态（`dsh-onebot-qq` 装了没/挂了没/端口模式/令牌一致不，`dsh-qq-bridge` 装了没/挂了没/桥接端口对不对） |
 | `napcat_restart` | 干净地杀掉整条链并重拉，然后等它上线 |
 | `napcat_dedupe` | 只在真有重复链时才杀（没重复就什么都不做） |
 
@@ -286,6 +275,8 @@ NapCat 连 OneBot 有两条相反的路：
 | `probeIntervalSec` | `45` | 复查间隔 |
 | `launchGraceSec` | `150` | 拉起后的宽限期 |
 | `qrFreshSec` | `300` | 二维码新鲜度窗口：比这新 = 还在等人扫 |
+| `qrPanelEnabled` | `true` | 要扫码时点开的那个小页面（只监听 `127.0.0.1`）。关掉 = 不起那个服务，只剩 DSH 里的路径 |
+| `qrPanelPort` | `8899` | 扫码页的端口（1024–65535）。换了立刻生效，旧端口会先放掉 |
 | `scanTimeoutSec` | `300` | 扫码等待上限 |
 | `maxScanRetries` | `2` | 扫码重试上限 |
 | `stuckSec` | `420` | 卡死判定 |
@@ -314,10 +305,11 @@ NapCat 连 OneBot 有两条相反的路：
 ├── launch.vbs          「自动创建计划任务」时生成的无窗口壳，计划任务调它
 ├── autogen-node.bat    Shell 型专用：拿 DSH 自带的 node 跑 napcat.mjs
 ├── autogen.bat         没现成启动脚本时生成：直接调 NapCatWinBootMain.exe
-├── setup/              提权交接目录：plan.json / apply.ps1 / apply-admin.cmd
-│                       / undo-admin.cmd / result.json / run.log / README.txt
 └── legacy/             老版本遗留的配置备份等，不参与运行，整个删掉也没事
 ```
+
+- 2.9.1 起目录里不再有 `setup/`（那套「生成 apply-admin.cmd 让你双击」的提权交接机制已整块删除，
+  旧版本留下的 `setup/` 目录是死文件，可以手动删掉）。
 
 - `env.bat` 只在「记住密码」开启时才有；两份 `autogen*.bat` 只在需要时出现（每次拉起前按当前配置重写，删掉也会自己长回来）。整个目录删掉 = 插件回到没配置过的状态。
 - **从老版本升上来（< 2.7.0）**：第一次启动会自动把原来散在 `~/.dsh` 根上的文件搬进这个目录（`napcat-keeper-config.json` → `config.json` 这种），改名一次就固定；计划任务里写死的旧路径也会一并改指新位置 —— 那一步用 `schtasks /change` 就地改，不结束正在跑的 QQ。老备份、以及搬不动的老文件（目标位已经有同名的那份、或者正被别的进程占着）都归到 `legacy/`，`~/.dsh` 根上不会留东西；实在被占着搬不动的，下次启动再搬一次。
@@ -340,7 +332,7 @@ npm run check:privacy              # 只查隐私（发版前必跑）
 
 **隐私体检**是发版前那道闸：把包里所有文本文件过一遍，找 Windows / Unix 家目录路径、邮箱、`ghp_` / `npm_` / `sk-` / `AKIA` 这类凭证、`Bearer` 后面的真串、DSH 会话 id，以及自测里那种 `launchAccount: '1234567890'` 的真实 QQ 号。命中就按 `文件:行` 列出来并返回非 0；确实是文档里必须留的示例，在那行末尾写 `check-privacy:ignore` 放过。占位写法（`C:/Users/你/…`、`C:/Users/x/…`）本来就放行。
 
-另外几个自测，都不依赖本机路径，clone 下来就能跑：`npm run smoke:client`（把 `lib/client.js` 塞进假 React 渲染一遍）、`npm run selftest:scan`（造假树验扫盘判定）、`npm run selftest:save`（保存真的落到插件目录、误写的那份被认领回来）、`npm run selftest:probe`（本地起假服务器，验普通 HTTP / 反向 WS / 需要鉴权 / 端口没开四种判定）、`npm run selftest:companion`（造假 profile 与桥接配置，验 `dsh-onebot-qq` 的端口跟随和 `dsh-qq-bridge` 的交叉结论）、`npm run selftest:setup`（临时目录里真跑一遍 apply / 重跑 / undo）、`npm run selftest:layout`（验「进程」那行按安装形态换词、目录判形的 60 秒缓存，以及任务命令行两条路是否同一套模板）。懒得一个个点就 `npm test`：清单体检 + 隐私体检 + 上面全部自测，一串跑完，红的就停。
+另外几个自测，都不依赖本机路径，clone 下来就能跑：`npm run smoke:client`（把 `lib/client.js` 塞进假 React 渲染一遍）、`npm run selftest:scan`（造假树验扫盘判定）、`npm run selftest:save`（保存真的落到插件目录、误写的那份被认领回来）、`npm run selftest:probe`（本地起假服务器，验普通 HTTP / 反向 WS / 需要鉴权 / 端口没开四种判定）、`npm run selftest:companion`（造假 profile 与桥接配置，验 `dsh-onebot-qq` 的端口跟随和 `dsh-qq-bridge` 的交叉结论）、`npm run selftest:setup`（临时目录里真跑一遍 apply / 重跑 / undo）、`npm run selftest:layout`（验「进程」那行按安装形态换词、目录判形的 60 秒缓存，以及任务命令行两条路是否同一套模板）、`npm run selftest:qrpanel`（临时 DSH_HOME 里真起一次扫码页，验页面/状态/图片/未知路径/端口被占/关掉开关/换端口）。懒得一个个点就 `npm test`：清单体检 + 隐私体检 + 上面全部自测，一串跑完，红的就停。
 
 > **改这个插件的文件的规矩**：别用 `Get-Content` 读、`Set-Content -Encoding utf8` 写 —— PowerShell 5.1 会按 ANSI 读、再按 UTF-8 写，一趟往返中文全变乱码，BOM 还照写。用编辑器另存为「UTF-8 无 BOM」；非要脚本写，就走
 > `[IO.File]::WriteAllText($path, $text, (New-Object System.Text.UTF8Encoding($false)))`。

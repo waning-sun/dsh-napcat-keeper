@@ -43,12 +43,19 @@ function collect(tree) {
   const boxes = [];
   const selects = [];
   const texts = [];
+  const links = [];
   (function walk(n) {
     if (n === null || n === undefined || n === false) return;
     if (typeof n === 'string' || typeof n === 'number') { texts.push(String(n)); return; }
     if (Array.isArray(n)) { n.forEach(walk); return; }
     if (n.__el) {
       if (n.type === 'button') buttons.push(n.children.filter((c) => typeof c === 'string').join(''));
+      if (n.type === 'a') {
+        links.push({
+          text: n.children.filter((c) => typeof c === 'string').join(''),
+          href: String((n.props && n.props.href) || ''),
+        });
+      }
       if (n.type === 'input' && n.props && n.props.type === 'checkbox') {
         boxes.push({ name: String(n.props.name || ''), checked: Boolean(n.props.checked), disabled: Boolean(n.props.disabled) });
       }
@@ -61,7 +68,7 @@ function collect(tree) {
       n.children.forEach(walk);
     }
   })(tree);
-  return { buttons, boxes, selects, text: texts.join(' ') };
+  return { buttons, boxes, selects, links, text: texts.join(' ') };
 }
 
 render(); // 第一次：态=null 的 loading 分支
@@ -84,33 +91,6 @@ states[0] = {
   },
   scan: { running: false, found: [], drives: ['C:'], visited: 0, elapsedMs: 0, limitHit: false, cancelled: false },
   drives: ['C:', 'D:', 'E:'],
-  setup: {
-    dir: 'C:/Users/x/.dsh/dsh-napcat-keeper/setup',
-    cmdPath: 'C:/Users/x/.dsh/dsh-napcat-keeper/setup/apply-admin.cmd',
-    ps1Path: 'C:/Users/x/.dsh/dsh-napcat-keeper/setup/apply.ps1',
-    undoCmdPath: 'C:/Users/x/.dsh/dsh-napcat-keeper/setup/undo-admin.cmd',
-    exists: true,
-    needs: [
-      { id: 'launcher', label: '自动启动脚本', hint: '补一个 napcat.quick.auto.bat', ready: true, why: '', needAdmin: false },
-      { id: 'envbat', label: '中间层（密码）', hint: '写中间层 bat', ready: true, why: '', needAdmin: false },
-      { id: 'task', label: '计划任务', hint: '建计划任务', ready: true, why: '', needAdmin: false },
-      { id: 'firewall', label: '防火墙放行', hint: '放行 OneBot 端口', ready: false, why: '端口没填', needAdmin: true },
-    ],
-    plan: {
-      createdAt: '2026-10-27T00:12:00.000Z',
-      needAdmin: true,
-      steps: [{ id: 'a', label: '建计划任务' }, { id: 'b', label: '放行防火墙' }],
-    },
-    lastRun: {
-      mode: 'apply',
-      ok: false,
-      elevated: true,
-      results: [
-        { id: 'a', label: '建计划任务', ok: true, skipped: false, message: '好了' },
-        { id: 'b', label: '放行防火墙', ok: false, skipped: false, message: '没权限' },
-      ],
-    },
-  },
   log: ['line1'],
 };
 
@@ -140,6 +120,38 @@ const rev = collect(render());
 check('反向 WS 时状态条说「反向 WS 已连接」', rev.text.includes('反向 WS 已连接'));
 check('反向 WS 时显示客户端数', /客户端 2/.test(rev.text));
 check('反向 WS 时显示探测方式与 HTTP 状态', rev.text.includes('反向 WebSocket') && rev.text.includes('HTTP 426'));
+// 扫码页：要扫码时顶上得冒黄横幅，链接指向插件自己的小端口（DSH 路由对外 403，只能当兜底）
+{
+  states[0].runtime.online = true;
+  states[0].runtime.phase = 'online';
+  states[0].qrPanel = { enabled: true, port: 8899, running: true, url: 'http://127.0.0.1:8899/', path: '/dsh-napcat-keeper/qr', note: '', error: '' };
+  const calm = collect(render());
+  check('没要扫码时不画扫码横幅', !calm.text.includes('要手机扫码登录'));
+  check('平时也有「打开扫码页」链接', calm.links.some((l) => l.text.includes('打开扫码页')));
+
+  states[0].runtime.online = false;
+  states[0].runtime.phase = 'need-scan';
+  states[0].runtime.qr = { file: 'q.png', ageSec: 20, copy: '' };
+  const scan = collect(render());
+  check('要扫码时顶上出黄横幅', scan.text.includes('要手机扫码登录'));
+  check('横幅里有「点开扫码页」', scan.links.some((l) => l.text.includes('点开扫码页')));
+  check('扫码页链接走小端口而不是 DSH 路由',
+    scan.links.filter((l) => l.text.includes('扫码页')).every((l) => l.href === 'http://127.0.0.1:8899/'),
+    JSON.stringify(scan.links));
+
+  states[0].qrPanel = { enabled: true, port: 8899, running: false, url: '', path: '/dsh-napcat-keeper/qr', note: '端口 8899 被占了（改一个 qrPanelPort，或关掉占它的程序）', error: '' };
+  const fallback = collect(render());
+  check('小端口没起来时退回 DSH 路由',
+    fallback.links.filter((l) => l.text.includes('扫码页')).every((l) => l.href === '/dsh-napcat-keeper/qr'),
+    JSON.stringify(fallback.links));
+  check('小端口没起来时把 note 写出来', fallback.text.includes('被占了'));
+
+  states[0].runtime.online = true;
+  states[0].runtime.phase = 'online';
+  delete states[0].runtime.qr;
+  states[0].qrPanel = { enabled: true, port: 8899, running: true, url: 'http://127.0.0.1:8899/', path: '/dsh-napcat-keeper/qr', note: '', error: '' };
+}
+
 states[0].runtime.mode = 'auth';
 states[0].runtime.online = false;
 states[0].runtime.portStatus = 401;
@@ -259,34 +271,24 @@ const legacyOut = collect(render());
 check('老后端不给判定时不误标壳模板', !legacyOut.text.includes('多半是 OneKey 装完留下的壳模板'));
 check('老后端时提示要重启 DSH', legacyOut.text.includes('重启 DSH'));
 
-// 提权脚本区
+// 2.9.1：提权交接（生成脚本那份）整块删了 —— 面板里不该再有它的按钮/勾选框，
+// 服务端旧状态里还带着 setup 字段时也不能炸。
 states[0].scan = { running: false, found: [], drives: ['C:'], visited: 0, elapsedMs: 0, limitHit: false, cancelled: false };
-const setupOut = collect(render());
-check('有「生成脚本并打开文件夹」', setupOut.buttons.includes('生成脚本并打开文件夹'));
-check('有「打开文件夹」「读结果」', setupOut.buttons.includes('打开文件夹') && setupOut.buttons.includes('读结果'));
-const needBoxes = setupOut.boxes.filter((b) => b.name.startsWith('npk-need-'));
-check('4 条 need 就有 4 个勾选框', needBoxes.length === 4, String(needBoxes.length));
-check('做不了的那条禁用', needBoxes.filter((b) => b.disabled).length === 1);
-check('做不了的那条没被勾上', needBoxes.filter((b) => b.checked).length === 3);
-check('显示「先解决：」', setupOut.text.includes('先解决：端口没填'));
-check('显示上次生成 2 步', /上次生成：.*2 步/.test(setupOut.text));
-check('显示上次执行 1/2 步成', /执行：1\/2 步成/.test(setupOut.text));
-check('显示用了管理员', setupOut.text.includes('用了管理员'));
-check('失败项有 ✗', setupOut.text.includes('✗ 放行防火墙：没权限'));
-check('显示脚本目录', setupOut.text.includes('dsh-napcat-keeper'));
-
-// 没生成过 / 还没跑过
-const keepSetup = states[0].setup;
-states[0].setup = { ...keepSetup, plan: null, lastRun: null };
-const emptyOut = collect(render());
-check('没生成过时提示', emptyOut.text.includes('还没生成过脚本'));
-states[0].setup = keepSetup;
-
-// 没有 setup 字段也不炸
-states[0].setup = undefined;
-const noSetup = collect(render());
-check('缺 setup 字段时降级提示', noSetup.text.includes('读不到脚本状态'));
-states[0].setup = keepSetup;
+states[0].setup = {
+  dir: 'C:/Users/x/.dsh/dsh-napcat-keeper/setup',
+  needs: [{ id: 'launcher', label: '自动启动脚本', ready: true }],
+  plan: { steps: [{ id: 'a', label: '建计划任务' }] },
+  lastRun: { mode: 'apply', ok: true, elevated: false, results: [] },
+};
+const setupGone = collect(render());
+check('不再有「生成脚本并打开文件夹」', !setupGone.buttons.includes('生成脚本并打开文件夹'));
+check('不再有「打开文件夹」「读结果」',
+  !setupGone.buttons.includes('打开文件夹') && !setupGone.buttons.includes('读结果'));
+check('不再有 need 勾选框', setupGone.boxes.filter((b) => b.name.startsWith('npk-need-')).length === 0,
+  String(setupGone.boxes.length));
+check('不再出现「需要你点一下的脚本」这一组', !setupGone.text.includes('需要你点一下的脚本'));
+check('旧状态里带 setup 字段也不炸', setupGone.text.includes('napcat桥') || setupGone.text.length > 200);
+delete states[0].setup;
 
 // 「进程」那行：按安装形态换词（boot 恒 0 不代表没进程）
 const keepRuntime = states[0].runtime;
