@@ -1,6 +1,6 @@
 {
   "name": "dsh-napcat-keeper",
-  "version": "2.9.3",
+  "version": "2.9.4",
   "description": "发现没有能够随着dsh打开自动启动napcat的插件，遂使用大肥鱼制作此插件，建议搭配Yuuyuko-uu的dsh-qq-link使用~",
   "type": "module",
   "main": "lib/index.js",
@@ -29,7 +29,8 @@
     "selftest:companion": "node scripts/selftest-companion.mjs",
     "selftest:layout": "node scripts/selftest-layout.mjs",
     "selftest:qrpanel": "node scripts/selftest-qrpanel.mjs",
-    "test": "node scripts/check-manifest.mjs && node scripts/check-privacy.mjs && node scripts/smoke-client.mjs && node scripts/selftest-scan.mjs && node scripts/selftest-save.mjs && node scripts/selftest-probe.mjs && node scripts/selftest-companion.mjs && node scripts/selftest-layout.mjs && node scripts/selftest-qrpanel.mjs"
+    "check:apply": "node scripts/probe-apply-ctx.mjs",
+    "test": "node scripts/check-manifest.mjs && node scripts/probe-apply-ctx.mjs && node scripts/check-privacy.mjs && node scripts/smoke-client.mjs && node scripts/selftest-scan.mjs && node scripts/selftest-save.mjs && node scripts/selftest-probe.mjs && node scripts/selftest-companion.mjs && node scripts/selftest-layout.mjs && node scripts/selftest-qrpanel.mjs"
   },
   "keywords": [
     "deepseek-harness",

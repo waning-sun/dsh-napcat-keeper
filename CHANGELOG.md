@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.9.4 — 修 dsh-market 的 `host apply` 报错：服务读取全部兜住
+
+- **改**：新增 `pickService(ctx, key)`，`ctx.tools` / `ctx.webServer` 一律经它读（内部 try/catch）。市场审计会拿一份「没声明 inject 的 ctx」探一次 `apply()`，原来是直接写 `ctx.tools`，于是抛 `cannot get property "tools" without inject`，整行判红（`apply() throws when a service it never declared is read`）；现在探针上下文里只是「拿不到服务」，真宿主里行为不变（`inject` 声明仍是 `['tools','webServer']`）。
+- **改（热重载实测补充）**：真宿主里这两个服务偶尔比 `apply` 晚一步就绪（同一份代码，一次 `tools registered`、下一次就 `unavailable`）。`registerTools` / `registerRoutes` 改成返回布尔的挂载结果，`apply` 统一走 `补挂服务(ctx, cfg)`：没挂上的那半边每秒补挂一次、最多 30 次，两样都挂上就收工；`stop()` 会清掉补挂定时器。`apply` 全程不抛、不返回 Promise，只是「拿不到就等，等不到就降级成看门狗单干」。
+- **改**：`scripts/probe-apply-ctx.mjs` 新增（本地复现该审计：用 Proxy 造一个「除核心 API 外一律抛 without inject」的 ctx 去调 `apply()`），并挂进 `npm test` 第一道；`package.json` 加 `check:apply`。
+- **测过**：`check:manifest` / `check:apply` / `check:privacy` / `smoke:client` 与 6 个 selftest 全绿。
+- 版本号：`lib/index.js` 的 `version` 与 `package.json` 同步到 2.9.4。
+
 ## 2.9.3 — 补上市场索引要的两项：`engines.dsh` 与 README 的 Requirements
 
 - **改**：`package.json` 的 `engines` 里加上 `"dsh": ">=0.2.1-rc.2"`（与既有的 `dshTarget` 对齐）。dsh-market 索引原本报 `engines.dsh is missing, so the market index cannot state the host requirement`，补上之后市场页能标出宿主版本要求。
