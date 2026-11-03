@@ -26,7 +26,7 @@
 | 拉到一半卡在扫码 | 记一笔 `need-scan`；超过 `scanTimeoutSec` 就杀掉重来，重试 `maxScanRetries` 次后放弃并写日志 |
 | 有两条 QQ 进程链（客户端互踢的根源） | 按启动时间聚类判重，只杀晚出现的那几条，保留正在服务的那条 |
 | 进程在、端口不通、也没有任何新信号 | 判为卡死，杀掉重来 |
-| 一切正常 | 只记心跳（默认 10 分钟一行），并顺手检查 `dsh-qq-bridge` 的轮询是否还新鲜 |
+| 一切正常 | 只记心跳（默认 10 分钟一行），并顺手检查 `dsh-qq-link` 的轮询是否还新鲜 |
 
 看门狗自己不会把 DSH 启动搞崩：外部调用都有超时、异常都吞掉写日志、跨进程还有一把锁防止两个 DSH 实例同时拉。
 
@@ -130,7 +130,7 @@ cscript / cmd 直接拉 NapCat，会多出一个控制台窗口挂在桌面上�
 ## 记住密码：默认关，开了要自己认风险
 
 NapCat 的**快速登录令牌会失效**（实测几小时左右），失效后启动脚本只会停在扫码，QQ 就一直离线，
-`dsh-qq-bridge` 那边则是刷屏的 `ECONNREFUSED 127.0.0.1:3000`。想让它自己能爬起来，就得给它密码。
+`dsh-qq-link` 那边则是刷屏的 `ECONNREFUSED 127.0.0.1:3000`。想让它自己能爬起来，就得给它密码。
 
 设置页「自动登录（可不填）」里勾 **记住密码** 时会先弹一段风险提示，要你自己点「我知道风险，仍然开启」才会生效。开启前请确认你接受这几条：
 
@@ -220,6 +220,10 @@ NapCat 连 OneBot 有两条相反的路：
 
 `dsh-onebot-qq` 提供的是**接口**（端口由它开，NapCat 连进去）；`dsh-qq-link` 是**客户端**（它反过来拿 HTTP 去连 NapCat，再把消息接到 QQ 聊天里）。两者对端口的要求正好相反。
 
+> 上游 2026-11 把 `dsh-qq-bridge` 改名成了 `dsh-qq-link`。**只换了包名和仓库名**，插件内部还是老名字：
+> 插件 id 仍是 `qq-bridge`、配置仍是 `~/.dsh/qq-bridge-config.json`、状态仍是 `~/.dsh/qq-bridge-state.json`、
+> 路由仍是 `/dsh-qq-bridge/*`。本插件 2.9.2 起两个包名都认（新名优先），还没升级的机器照样认得出，设置页显示的是你实际装的那个。
+
 本插件会顺手读桥接的配置（`~/.dsh/qq-bridge-config.json`，它的配置不在 profile 里、摊在 `~/.dsh` 根上），然后拿自己看到的实际情况跟它比一比，结论写在设置页「桥接插件」那行：
 
 | 看到的情况 | 结论 |
@@ -239,7 +243,7 @@ NapCat 连 OneBot 有两条相反的路：
 
 | 工具 | 作用 |
 | --- | --- |
-| `napcat_status` | 端口/登录态、进程链、二维码副本路径、**扫码页地址（`qrPanel.url`，要扫码时发给用户点开）**、桥接心跳、日志尾部，以及两个共存插件的状态（`dsh-onebot-qq` 装了没/挂了没/端口模式/令牌一致不，`dsh-qq-bridge` 装了没/挂了没/桥接端口对不对） |
+| `napcat_status` | 端口/登录态、进程链、二维码副本路径、**扫码页地址（`qrPanel.url`，要扫码时发给用户点开）**、桥接心跳、日志尾部，以及两个共存插件的状态（`dsh-onebot-qq` 装了没/挂了没/端口模式/令牌一致不，`dsh-qq-link` 装了没/挂了没/桥接端口对不对） |
 | `napcat_restart` | 干净地杀掉整条链并重拉，然后等它上线 |
 | `napcat_dedupe` | 只在真有重复链时才杀（没重复就什么都不做） |
 
@@ -274,10 +278,10 @@ NapCat 连 OneBot 有两条相反的路：
 | `chainGapSec` | `120` | 重复链判定窗口 |
 | `maxQqPerChain` | `4` | 单条链该有几条 `QQ.exe`，判重时的参考值 |
 | `procPathMatch` | 空（由 shellDir 推两层） | 只在这个路径前缀下找 QQ/NapCat 进程 |
-| `bridgeStaleSec` | `180` | `dsh-qq-bridge` 的 state 多久没更新就警告 |
+| `bridgeStaleSec` | `180` | `dsh-qq-link` 的 state 多久没更新就警告 |
 | `maxLogBytes` | `1048576` | 日志超这么多字节就滚动一次 |
 
-剩下几个是路径类字段（`configPath` / `logPath` / `launcherLog` / `lockPath` / `statePath` / `qrCopyPath` / `bridgeStatePath`），默认都落在 `~/.dsh/dsh-napcat-keeper/` 下（`bridgeStatePath` 例外，那是 `dsh-qq-bridge` 的文件，留在 `~/.dsh/` 根上），一般不用碰。
+剩下几个是路径类字段（`configPath` / `logPath` / `launcherLog` / `lockPath` / `statePath` / `qrCopyPath` / `bridgeStatePath`），默认都落在 `~/.dsh/dsh-napcat-keeper/` 下（`bridgeStatePath` 例外，那是 `dsh-qq-link` 的文件，留在 `~/.dsh/` 根上），一般不用碰。
 
 ## 文件都在哪
 
@@ -322,7 +326,7 @@ npm run check:privacy              # 只查隐私（发版前必跑）
 
 **隐私体检**是发版前那道闸：把包里所有文本文件过一遍，找 Windows / Unix 家目录路径、邮箱、`ghp_` / `npm_` / `sk-` / `AKIA` 这类凭证、`Bearer` 后面的真串、DSH 会话 id，以及自测里那种 `launchAccount: '1234567890'` 的真实 QQ 号。命中就按 `文件:行` 列出来并返回非 0；确实是文档里必须留的示例，在那行末尾写 `check-privacy:ignore` 放过。占位写法（`C:/Users/你/…`、`C:/Users/x/…`）本来就放行。
 
-另外几个自测，都不依赖本机路径，clone 下来就能跑：`npm run smoke:client`（把 `lib/client.js` 塞进假 React 渲染一遍）、`npm run selftest:scan`（造假树验扫盘判定）、`npm run selftest:save`（保存真的落到插件目录、误写的那份被认领回来）、`npm run selftest:probe`（本地起假服务器，验普通 HTTP / 反向 WS / 需要鉴权 / 端口没开四种判定）、`npm run selftest:companion`（造假 profile 与桥接配置，验 `dsh-onebot-qq` 的端口跟随和 `dsh-qq-bridge` 的交叉结论）、`npm run selftest:setup`（临时目录里真跑一遍 apply / 重跑 / undo）、`npm run selftest:layout`（验「进程」那行按安装形态换词、目录判形的 60 秒缓存，以及任务命令行两条路是否同一套模板）、`npm run selftest:qrpanel`（临时 DSH_HOME 里真起一次扫码页，验页面/状态/图片/未知路径/端口被占/关掉开关/换端口）。懒得一个个点就 `npm test`：清单体检 + 隐私体检 + 上面全部自测，一串跑完，红的就停。
+另外几个自测，都不依赖本机路径，clone 下来就能跑：`npm run smoke:client`（把 `lib/client.js` 塞进假 React 渲染一遍）、`npm run selftest:scan`（造假树验扫盘判定）、`npm run selftest:save`（保存真的落到插件目录、误写的那份被认领回来）、`npm run selftest:probe`（本地起假服务器，验普通 HTTP / 反向 WS / 需要鉴权 / 端口没开四种判定）、`npm run selftest:companion`（造假 profile 与桥接配置，验 `dsh-onebot-qq` 的端口跟随和 `dsh-qq-link` 的交叉结论）、`npm run selftest:layout`（验「进程」那行按安装形态换词、目录判形的 60 秒缓存，以及任务命令行两条路是否同一套模板）、`npm run selftest:qrpanel`（临时 DSH_HOME 里真起一次扫码页，验页面/状态/图片/未知路径/端口被占/关掉开关/换端口）。懒得一个个点就 `npm test`：清单体检 + 隐私体检 + 上面全部自测，一串跑完，红的就停。
 
 > **改这个插件的文件的规矩**：别用 `Get-Content` 读、`Set-Content -Encoding utf8` 写 —— PowerShell 5.1 会按 ANSI 读、再按 UTF-8 写，一趟往返中文全变乱码，BOM 还照写。用编辑器另存为「UTF-8 无 BOM」；非要脚本写，就走
 > `[IO.File]::WriteAllText($path, $text, (New-Object System.Text.UTF8Encoding($false)))`。

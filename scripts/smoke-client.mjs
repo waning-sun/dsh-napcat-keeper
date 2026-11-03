@@ -190,10 +190,10 @@ delete states[0].runtime.companion;
 delete states[0].runtime.companionReady;
 delete states[0].runtime.companionTokenMatch;
 
-// 和 dsh-qq-bridge 共存：它是「客户端」，要能看出装没装、挂没挂、连的端口对不对
+// 和 dsh-qq-link 共存：它是「客户端」，要能看出装没装、挂没挂、连的端口对不对
 const noBridge = collect(render());
 check('没装桥接时也有「桥接插件」那行', noBridge.text.includes('桥接插件'));
-check('没装时写「没检测到 dsh-qq-bridge」', noBridge.text.includes('没检测到 dsh-qq-bridge'));
+check('没装时写「没检测到 dsh-qq-link」', noBridge.text.includes('没检测到 dsh-qq-link'));
 states[0].runtime.bridgePlugin = {
   version: '1.0.7',
   profile: 'desktop',
@@ -206,10 +206,10 @@ states[0].runtime.bridgePlugin = {
   bindings: 0,
   configKnown: true,
   check: 'bridge-hits-reverse',
-  note: 'dsh-qq-bridge 连的是 http://127.0.0.1:8643，而那个端口现在是反向 WebSocket',
+  note: 'dsh-qq-link 连的是 http://127.0.0.1:8643，而那个端口现在是反向 WebSocket',
 };
 const withBridge = collect(render());
-check('装了会说版本与状态', withBridge.text.includes('dsh-qq-bridge 1.0.7') && withBridge.text.includes('已启用'));
+check('装了会说版本与状态', withBridge.text.includes('dsh-qq-link 1.0.7') && withBridge.text.includes('已启用'));
 check('在发 / 试运行 要分得清', withBridge.text.includes('在发'));
 check('连的是反向 WS 端口要标出来', withBridge.text.includes('连的是反向 WS 端口'));
 check('提示文案单独一行给出来', withBridge.text.includes('桥接提示：') && withBridge.text.includes('反向 WebSocket'));

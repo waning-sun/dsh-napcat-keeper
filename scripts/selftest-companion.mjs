@@ -42,7 +42,7 @@ const {
   probe,
   normalizeConfig,
   COMPANION_DEFAULTS,
-  // dsh-qq-bridge 那一套
+  // dsh-qq-link 那一套
   detectBridge,
   bridgePublic,
   bridgeCheck,
@@ -50,6 +50,8 @@ const {
   urlPort,
   BRIDGE_DEFAULTS,
   BRIDGE_PACKAGE,
+  BRIDGE_PACKAGES,
+  bridgeHits,
   profileHits,
 } = await loadInternals()
 
@@ -364,8 +366,8 @@ console.log('\n5b) 跟随开关：装没装 / 启没启用 决定显不显示、
   setStored({})
 }
 
-/* 6. dsh-qq-bridge 也认得出 -------------------------------------------- */
-console.log('\n6) dsh-qq-bridge：装没装、挂没挂、桥接指向哪')
+/* 6. dsh-qq-link 也认得出 -------------------------------------------- */
+console.log('\n6) dsh-qq-link：装没装、挂没挂、桥接指向哪')
 {
   // 清场：前面几组造的 profile 全删掉，这一组只看自己造的
   for (const name of ['alpha', 'beta', 'gamma', 'delta', 'desktop']) {
@@ -386,8 +388,8 @@ console.log('\n6) dsh-qq-bridge：装没装、挂没挂、桥接指向哪')
 
   // 6b. 装了 + 在 bundles 里 + 配置文件齐全
   mkProfile('desktop', {
-    deps: { 'dsh-qq-bridge': '^1.0.7' },
-    bundles: ['dsh-napcat-keeper', 'dsh-qq-bridge'],
+    deps: { 'dsh-qq-link': '^1.0.7' },
+    bundles: ['dsh-napcat-keeper', 'dsh-qq-link'],
     patch: 'plugins: []\n',
   })
   dropPkg('desktop', BRIDGE_PACKAGE, '1.0.7')
@@ -398,6 +400,8 @@ console.log('\n6) dsh-qq-bridge：装没装、挂没挂、桥接指向哪')
   b = detectBridge({ force: true })
   ok(b.found === true && b.mounted === true, '装了且在 bundles 里 → 已挂载', JSON.stringify({ found: b.found, mounted: b.mounted }))
   ok(b.packageVersion === '1.0.7', '读到它的版本号', String(b.packageVersion))
+  ok(b.packageName === 'dsh-qq-link', '报的是新包名 dsh-qq-link', String(b.packageName))
+  ok(bridgePublic(b).packageName === 'dsh-qq-link', '对外也带 packageName（界面照着显示）', String(bridgePublic(b).packageName))
   ok(readBridgeConfig().known === true, '读得到 ~/.dsh/qq-bridge-config.json（摊在根上，不在 profile 里）')
   ok(b.napcatPort === 4000, '桥接指向 4000', String(b.napcatPort))
   ok(b.enabled === true && b.dryRun === false, '总开关开、试运行关', JSON.stringify({ enabled: b.enabled, dryRun: b.dryRun }))
@@ -435,7 +439,7 @@ console.log('\n6) dsh-qq-bridge：装没装、挂没挂、桥接指向哪')
   ok(bridgeCheck({ mode: 'http', portUsed: 3000 }, b).state === 'dry-run', '试运行 → dry-run')
 
   // 6h. 装了但没挂进 profile：先报没挂，别先去怪端口
-  mkProfile('beta', { deps: { 'dsh-qq-bridge': '^1.0.7' }, bundles: ['dsh-napcat-keeper'], patch: 'plugins: []\n' })
+  mkProfile('beta', { deps: { 'dsh-qq-link': '^1.0.7' }, bundles: ['dsh-napcat-keeper'], patch: 'plugins: []\n' })
   dropPkg('beta', BRIDGE_PACKAGE, '1.0.7')
   fs.rmSync(path.join(HOME, 'profiles', 'desktop'), { recursive: true, force: true })
   b = detectBridge({ force: true })
@@ -481,6 +485,21 @@ console.log('\n6) dsh-qq-bridge：装没装、挂没挂、桥接指向哪')
   )
   ok(Boolean(health.bridge && health.bridge.note), '而且带一句人话提示')
   await srv2.close()
+
+  // 6k. 老包名 dsh-qq-bridge（还没升级的机器）照样认得出
+  // 上游 2026-11 才改名，真实机器上很可能还躺着老包；认不到就等于「说得像没装」。
+  fs.rmSync(path.join(HOME, 'profiles', 'beta'), { recursive: true, force: true })
+  mkProfile('gamma', {
+    deps: { 'dsh-qq-bridge': '^1.0.7' },
+    bundles: ['dsh-napcat-keeper', 'dsh-qq-bridge'],
+    patch: 'plugins: []\n',
+  })
+  dropPkg('gamma', 'dsh-qq-bridge', '1.0.7')
+  const legacy = detectBridge({ force: true })
+  ok(legacy.found === true && legacy.mounted === true, '只装了老包 → 仍认得出且算已挂载', JSON.stringify({ found: legacy.found, mounted: legacy.mounted }))
+  ok(legacy.packageName === 'dsh-qq-bridge', '这时 packageName 如实报老名', String(legacy.packageName))
+  ok(BRIDGE_PACKAGES[0] === 'dsh-qq-link' && BRIDGE_PACKAGES.includes('dsh-qq-bridge'), '两个包名都在候选里、新名优先', JSON.stringify(BRIDGE_PACKAGES))
+  ok(bridgeHits().some((h) => h.pkg === 'dsh-qq-bridge'), 'bridgeHits 把老包也扫进来了', JSON.stringify(bridgeHits().map((h) => h.pkg)))
 }
 
 fs.rmSync(HOME, { recursive: true, force: true })

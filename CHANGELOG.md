@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.9.2 — 跟着上游把桥接插件认成 `dsh-qq-link`（老名继续兼容）
+
+- **改**：上游把 `dsh-qq-bridge` 改名成 **`dsh-qq-link`**（npm 包名与仓库名都换了，2026-11）。本插件认包的地方跟着改：`BRIDGE_PACKAGES = ['dsh-qq-link', 'dsh-qq-bridge']`，新增 `bridgeHits()` 把两个包名的探测结果合并、一个 profile 只留一条、新名优先。
+- **没改（很关键）**：上游只换了包名，插件内部还是老名字 —— `export const name = 'qq-bridge'`、配置 `~/.dsh/qq-bridge-config.json`、状态 `~/.dsh/qq-bridge-state.json`、路由前缀 `/dsh-qq-bridge/*`（实测 1.5.1 仍然如此）。所以 `BRIDGE_ID`、`bridgeStatePath`、配置文件名一律原样保留；谁把它们跟着改成 link，就会永远认不到桥接。
+- **兼容**：机器上还装着老包 `dsh-qq-bridge` 的，照样认得出（结果里 `candidates[].packageName` 会如实标出是哪个包）。
+- **界面/工具**：桥接那行改成显示**实际装的包名**（`bridgePublic.packageName`，缺省 `dsh-qq-link`），不再硬编码文案；`napcat_status` 的 `companion.bridge` 一并带上这个字段。提示语（没挂载 / 连了反向 WS 端口 / 端口对不上 / 总开关关着 / 试运行）统一说 `dsh-qq-link`。
+- **README**：全文（含开篇简介、心跳说明、配置表、文件位置、自测清单）统一改成 `dsh-qq-link`；补一段「改名只换了包名，内部名字没变」的说明；顺手删掉 `npm run selftest:setup` 那半句（2.9.1 已把该脚本删掉，留着会骗人）。
+- **测过**：`npm test` 全绿（清单体检 + 隐私体检 + smoke:client 65 项 + scan/save/probe/companion/layout/qrpanel 全部自测）；`selftest:companion` 的夹具改成新包名，并保留「老包名也认」的断言。
+- 版本号：`lib/index.js` 的 `version` 与 `package.json` 同步到 2.9.2。
+
 ## 2.9.1 — 删掉「提权交接」那套生成脚本的机制（它做的事插件本来就能自己做）
 
 - **删**：设置页里「需要你点一下的脚本（免管理员提权）」整块没了 —— 连带 `makeSetup` / `openSetup` / `setupResult` 三个动作、`SETUP_NEEDS`、`buildSetupSteps`、`writeSetupBundle`、`readSetupResult`、`readSetupPlan`、`setupState`、`openSetupFolder`、`setupPaths`、`dirWritable`、`needCatalog`、`applyPs1Source`、`setupCmdSource`、`setupUndoCmdSource`、`setupReadmeText`、`launcherBatLines`，以及面板里的「提权区」和它那排勾选框。服务端 `uiState().setup` 字段一并去掉；服务端旧版还带着 `setup` 时面板也不炸。
