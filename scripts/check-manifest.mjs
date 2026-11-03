@@ -296,6 +296,23 @@ if (pkg) {
     else if (m[1] !== pkg.version) fail(`版本不同步：package.json=${pkg.version}，${entry}=${m[1]}`);
     else ok(`版本同步：${pkg.version}`);
   }
+
+  // 市场索引（dsh-market）专用：这两项缺了，市场页会标红，用户看不出宿主要求
+  const dsEngine = pkg.engines?.dsh;
+  if (typeof dsEngine === 'string' && dsEngine.trim()) ok(`engines.dsh = ${dsEngine}`);
+  else fail('package.json 缺 engines.dsh —— dsh-market 索引无法标出宿主版本要求（engines.dsh is missing）');
+
+  const readmePath = join(ROOT, 'README.md');
+  if (!existsSync(readmePath)) {
+    fail('README.md 不存在 —— 市场页没有可读的说明');
+  } else {
+    const readme = readFileSync(readmePath, 'utf8');
+    if (/^##\s+Requirements\s*$/m.test(readme)) {
+      ok('README.md 有英文标题的 ## Requirements 段（市场索引能解析宿主要求）');
+    } else {
+      fail('README.md 没有英文标题的 ## Requirements 段 —— dsh-market 会报 README.md has no Requirements section');
+    }
+  }
 }
 
 // ── 3. 全目录扫 BOM / 非法 UTF-8 / 双重编码 ────────────────────────────────

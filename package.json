@@ -1,6 +1,6 @@
 {
   "name": "dsh-napcat-keeper",
-  "version": "2.9.2",
+  "version": "2.9.3",
   "description": "发现没有能够随着dsh打开自动启动napcat的插件，遂使用大肥鱼制作此插件，建议搭配Yuuyuko-uu的dsh-qq-link使用~",
   "type": "module",
   "main": "lib/index.js",
@@ -57,7 +57,8 @@
     }
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=20",
+    "dsh": ">=0.2.1-rc.2"
   },
   "dshTarget": "0.2.1-rc.2",
   "publishConfig": {

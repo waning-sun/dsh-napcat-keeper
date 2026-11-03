@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.9.3 — 补上市场索引要的两项：`engines.dsh` 与 README 的 Requirements
+
+- **改**：`package.json` 的 `engines` 里加上 `"dsh": ">=0.2.1-rc.2"`（与既有的 `dshTarget` 对齐）。dsh-market 索引原本报 `engines.dsh is missing, so the market index cannot state the host requirement`，补上之后市场页能标出宿主版本要求。
+- **改**：README 增加英文标题的 `## Requirements` 段（内含中文表格：DSH 宿主 / Node / Windows / NapCat / 可选的 dsh-qq-link，并注明每项对应的清单字段）。市场校验原本报 `README.md has no Requirements section`。
+- **改**：`scripts/check-manifest.mjs` 把这两项也纳入体检（缺 `engines.dsh`、缺 `## Requirements` 直接 FAIL），以后本地 `npm test` 就能拦住同类漏项，不用等市场回来说。
+- 版本号：`lib/index.js` 的 `version` 与 `package.json` 同步到 2.9.3。
+
 ## 2.9.2 — 跟着上游把桥接插件认成 `dsh-qq-link`（老名继续兼容）
 
 - **改**：上游把 `dsh-qq-bridge` 改名成 **`dsh-qq-link`**（npm 包名与仓库名都换了，2026-11）。本插件认包的地方跟着改：`BRIDGE_PACKAGES = ['dsh-qq-link', 'dsh-qq-bridge']`，新增 `bridgeHits()` 把两个包名的探测结果合并、一个 profile 只留一条、新名优先。

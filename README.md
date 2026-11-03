@@ -39,6 +39,18 @@
 > （默认 **http://127.0.0.1:8899/**），设置页顶上那条黄横幅 / 二维码那一行的「打开扫码页」
 > 点进去就是一张会自己刷新的码，扫完它自己变绿。换端口见下面配置表 `qrPanelPort`。
 
+## Requirements
+
+dsh-market 的索引会读这一段（标题必须是英文 `Requirements`，否则市场校验报 `README.md has no Requirements section`），内容照旧中文。
+
+| 项 | 要求 | 清单字段 |
+| --- | --- | --- |
+| DSH 宿主 | `>= 0.2.1-rc.2`（本机实测 0.2.1-rc.3） | `engines.dsh` |
+| Node.js | `>= 20`（插件零 npm 依赖，只用 Node 内置模块） | `engines.node` |
+| 操作系统 | **Windows**（进程探测靠 `Get-CimInstance`、拉起与计划任务靠 `schtasks` / `cscript`） | — |
+| NapCat | NapCat.Shell（Windows 一键包，自带 QQ 内核），装在 `D:\tool\napcat` 这类目录即可 | 设置页「路径前缀」 |
+| 可选 | `dsh-qq-link`（负责把 QQ 与 DSH 会话接通；本插件只管让 NapCat 不掉线） | — |
+
 ## 安装
 
 **DSH桌面版**：设置 → 插件 → **添加插件**，「包名或地址」那一栏只填包名 ——
